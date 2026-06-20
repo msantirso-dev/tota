@@ -14,7 +14,7 @@ from app.api.routers import (
     history,
     phrases,
     profiles,
-    settings,
+    settings as settings_router,
     suggestions,
     tts,
     users,
@@ -31,7 +31,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-settings = get_settings()
+app_settings = get_settings()
 
 app = FastAPI(
     title="TOTA AAC API",
@@ -44,7 +44,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, f"https://{settings.domain}"],
+    allow_origins=[app_settings.frontend_url, f"https://{app_settings.domain}"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -63,7 +63,7 @@ app.include_router(history.router, prefix=API_PREFIX)
 app.include_router(suggestions.router, prefix=API_PREFIX)
 app.include_router(automation.router, prefix=API_PREFIX)
 app.include_router(emergency.router, prefix=API_PREFIX)
-app.include_router(settings.router, prefix=API_PREFIX)
+app.include_router(settings_router.router, prefix=API_PREFIX)
 app.include_router(tts.router, prefix=API_PREFIX)
 
 
