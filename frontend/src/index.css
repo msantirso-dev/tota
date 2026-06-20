@@ -1,0 +1,54 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f8fafc;
+  --fg: #0f172a;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --primary: #6366f1;
+}
+
+.high-contrast {
+  --bg: #000000;
+  --fg: #ffffff;
+  --surface: #111111;
+  --border: #ffffff;
+  --primary: #ffff00;
+}
+
+body {
+  @apply m-0 min-h-screen font-sans antialiased;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+#root {
+  @apply min-h-screen;
+}
+
+.aac-button {
+  @apply flex min-h-[5rem] flex-col items-center justify-center rounded-2xl border-2 p-3 text-center shadow-sm transition-transform active:scale-95;
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.aac-button:focus-visible {
+  @apply outline-none ring-4 ring-indigo-300;
+}
+
+.high-contrast .aac-button:focus-visible {
+  @apply ring-yellow-300;
+}
+
+.aac-toolbar-btn {
+  @apply inline-flex min-h-[3.5rem] min-w-[3.5rem] items-center justify-center rounded-xl px-5 text-lg font-semibold transition active:scale-95;
+}
+
+.surface {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--fg);
+}

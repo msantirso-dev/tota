@@ -1,0 +1,31 @@
+from app.api.routers import (
+    auth,
+    automation,
+    boards,
+    buttons,
+    categories,
+    emergency,
+    history,
+    phrases,
+    profiles,
+    settings,
+    suggestions,
+    tts,
+    users,
+)
+
+__all__ = [
+    "auth",
+    "automation",
+    "boards",
+    "buttons",
+    "categories",
+    "emergency",
+    "history",
+    "phrases",
+    "profiles",
+    "settings",
+    "suggestions",
+    "tts",
+    "users",
+]

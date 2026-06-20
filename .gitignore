@@ -1,0 +1,12 @@
+.env
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+*.tsbuildinfo
+.DS_Store
+.idea/
+.vscode/
