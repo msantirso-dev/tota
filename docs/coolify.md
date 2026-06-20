@@ -3,29 +3,75 @@
 ## Requisitos
 
 - Servidor con Docker
-- Coolify instalado
+- Coolify v4 instalado
 - Dominio `tota.pit.com.ar` apuntando al servidor
 
-## Pasos
+## Configuración en Coolify (General)
 
-1. Importar repositorio en Coolify
-2. Tipo de deploy: **Docker Compose**
-3. Archivo: `docker-compose.yml` (raíz)
-4. Variables de entorno desde `.env.example`
-5. Dominio asignado al servicio `frontend` puerto `80`
-6. SSL automático vía Coolify
+| Campo | Valor |
+|-------|-------|
+| Build Pack | Docker Compose |
+| Base Directory | `/` |
+| Docker Compose Location | `/docker-compose.yaml` |
 
-## Variables críticas
+> Coolify busca por defecto `docker-compose.yaml`. El repo incluye ese archivo (versión sin puertos publicados, optimizada para Coolify).
+
+## Dominio
+
+1. Ir a la pestaña del servicio **frontend**
+2. Asignar dominio: `https://tota.pit.com.ar`
+3. Puerto del contenedor: **80**
+4. Activar SSL (Let's Encrypt)
+
+El backend **no** necesita dominio propio: nginx en frontend hace proxy de `/api` → `backend:8000`.
+
+## Variables de entorno (obligatorias)
+
+Configurar en **Environment Variables** de Coolify:
 
 ```env
-JWT_SECRET=<generar-secreto-largo>
-POSTGRES_PASSWORD=<password-seguro>
+DOMAIN=tota.pit.com.ar
 FRONTEND_URL=https://tota.pit.com.ar
 API_URL=https://tota.pit.com.ar/api
+VITE_API_URL=/api
+
+POSTGRES_DB=tota
+POSTGRES_USER=tota
+POSTGRES_PASSWORD=<password-seguro>
+DATABASE_URL=postgresql://tota:<password-seguro>@postgres:5432/tota
+
+REDIS_URL=redis://redis:6379/0
+JWT_SECRET=<secreto-largo-aleatorio>
+JWT_ALGORITHM=HS256
+
+AI_PROVIDER=mock
+TTS_PROVIDER=browser
+STT_PROVIDER=mock
+AUTOMATION_PROVIDER=mock
 ```
 
-## Notas
+**Importante:** `POSTGRES_PASSWORD` y la contraseña en `DATABASE_URL` deben coincidir.
 
-- El backend no se expone directamente; el frontend hace proxy `/api` → `backend:8000`
-- Para debug, se puede exponer temporalmente el puerto del backend
-- Los servicios opcionales (ollama, piper, etc.) están comentados en docker-compose
+## Deploy
+
+1. Guardar configuración
+2. Clic en **Deploy**
+3. Revisar **Logs** si el estado queda en "Exited"
+
+## Errores comunes
+
+| Error | Solución |
+|-------|----------|
+| `Docker Compose file not found at /docker-compose.yaml` | Usar `/docker-compose.yaml` (ya incluido en el repo) |
+| Contenedor Exited | Revisar Logs → suele ser falta de `JWT_SECRET` o `DATABASE_URL` |
+| Puerto 80 en uso | No publicar puertos en Coolify; usar solo `expose` (docker-compose.yaml) |
+| API no responde | Verificar que el dominio esté en el servicio `frontend`, no en `backend` |
+
+## Desarrollo local
+
+Usar `docker-compose.yml` (incluye `ports: 80:80`):
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.yml up -d --build
+```

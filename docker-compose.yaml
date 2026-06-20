@@ -5,8 +5,6 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
     restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:-80}:80"
     expose:
       - "80"
     depends_on:
@@ -27,8 +25,8 @@ services:
     restart: unless-stopped
     environment:
       DOMAIN: ${DOMAIN:-tota.pit.com.ar}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
-      API_URL: ${API_URL:-http://localhost/api}
+      FRONTEND_URL: ${FRONTEND_URL:-https://tota.pit.com.ar}
+      API_URL: ${API_URL:-https://tota.pit.com.ar/api}
       DATABASE_URL: ${DATABASE_URL:-postgresql://tota:change_me@postgres:5432/tota}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       JWT_SECRET: ${JWT_SECRET:-change_me}
