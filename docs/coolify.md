@@ -16,16 +16,33 @@
 
 > Coolify busca por defecto `docker-compose.yaml`. El repo incluye ese archivo (versión sin puertos publicados, optimizada para Coolify).
 
-## Dominio
+## Dominio (IMPORTANTE — sin esto verás 503)
 
-1. Ir a la pestaña del servicio **frontend**
-2. Asignar dominio: `https://tota.pit.com.ar`
-3. Puerto del contenedor: **80**
-4. Activar SSL (Let's Encrypt)
+El deploy puede estar **Running** pero el sitio no abre si falta el dominio en el servicio correcto.
 
-El backend **no** necesita dominio propio: nginx en frontend hace proxy de `/api` → `backend:8000`.
+1. En Coolify, abrí el recurso **tota** (Docker Compose)
+2. En la lista de servicios, entrá al servicio **`frontend`** (no al stack general)
+3. En **Domains / FQDN**, agregá: `https://tota.pit.com.ar`
+4. **Port:** `80`
+5. Clic en **Generate Domain** o **Save**
+6. **Redeploy**
+7. Si sigue en 503: **Servers → tu servidor → Restart Proxy**
 
-## Variables de entorno (obligatorias)
+> Coolify usa Traefik. Sin dominio asignado al servicio `frontend`, Traefik responde **503 No available server**.
+
+## Redes Docker
+
+**No uses redes custom** en `docker-compose.yaml`. Coolify gestiona la red del proxy automáticamente. Una red `tota-network` aislada impide que Traefik alcance el frontend ([issue #6215](https://github.com/coollabsio/coolify/issues/6215)).
+
+## DNS
+
+Verificá que `tota.pit.com.ar` apunte por **A record** a la IP pública del servidor Coolify:
+
+```bash
+dig tota.pit.com.ar +short
+```
+
+## Configuración en Coolify (General)
 
 Configurar en **Environment Variables** de Coolify:
 
@@ -64,6 +81,7 @@ AUTOMATION_PROVIDER=mock
 |-------|----------|
 | `Docker Compose file not found at /docker-compose.yaml` | Usar `/docker-compose.yaml` (ya incluido en el repo) |
 | Contenedor Exited | Revisar Logs → suele ser falta de `JWT_SECRET` o `DATABASE_URL` |
+| **503 No available server** | Asignar dominio al servicio `frontend` puerto 80 + Restart Proxy |
 | Puerto 80 en uso | No publicar puertos en Coolify; usar solo `expose` (docker-compose.yaml) |
 | API no responde | Verificar que el dominio esté en el servicio `frontend`, no en `backend` |
 

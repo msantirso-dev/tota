@@ -10,8 +10,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    networks:
-      - tota-network
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost/health"]
       interval: 30s
@@ -55,8 +53,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - tota-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -73,8 +69,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - tota-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tota} -d ${POSTGRES_DB:-tota}"]
       interval: 10s
@@ -88,17 +82,11 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
-    networks:
-      - tota-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-
-networks:
-  tota-network:
-    driver: bridge
 
 volumes:
   postgres_data:
