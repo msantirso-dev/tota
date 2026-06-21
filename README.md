@@ -73,6 +73,7 @@ Acceder a:
 |-------|------------|-----|
 | admin@tota.pit.com.ar | admin123 | admin |
 | usuario@tota.pit.com.ar | usuario123 | usuario |
+| tato@tota.pit.com.ar | tato | usuario |
 
 ## Desarrollo local sin Docker
 

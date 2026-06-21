@@ -146,6 +146,50 @@ def _create_default_board(db: Session, owner_id: int, automation_user_id: int) -
     return board
 
 
+def _create_usuario(
+    db: Session,
+    email: str,
+    full_name: str,
+    password: str,
+    *,
+    with_board: bool = True,
+    with_emergency_contact: bool = True,
+) -> User:
+    user = User(
+        email=email,
+        full_name=full_name,
+        role=UserRole.usuario,
+        hashed_password=get_password_hash(password),
+    )
+    db.add(user)
+    db.flush()
+    db.add(Profile(user_id=user.id, display_name=full_name))
+    if with_board:
+        _create_default_board(db, user.id, user.id)
+    if with_emergency_contact:
+        db.add(
+            EmergencyContact(
+                user_id=user.id,
+                name="Contacto de emergencia",
+                phone="+5491100000000",
+                relationship_type="familiar",
+                is_primary=True,
+            )
+        )
+    return user
+
+
+TATO_EMAIL = "tato@tota.pit.com.ar"
+
+
+def ensure_extra_users(db: Session) -> None:
+    if db.query(User).filter(User.email == TATO_EMAIL).first():
+        return
+    _create_usuario(db, TATO_EMAIL, "Tato", "tato")
+    db.commit()
+    logger.info("Usuario Tato creado (%s)", TATO_EMAIL)
+
+
 def seed_database(db: Session) -> None:
     if db.query(User).filter(User.email == "admin@tota.pit.com.ar").first():
         logger.info("Database already seeded, skipping")
@@ -163,21 +207,38 @@ def seed_database(db: Session) -> None:
         role=UserRole.usuario,
         hashed_password=get_password_hash("usuario123"),
     )
-    db.add_all([admin, demo])
+    tato = User(
+        email=TATO_EMAIL,
+        full_name="Tato",
+        role=UserRole.usuario,
+        hashed_password=get_password_hash("tato"),
+    )
+    db.add_all([admin, demo, tato])
     db.flush()
 
     db.add_all(
         [
             Profile(user_id=admin.id, display_name="Administrador TOTA"),
             Profile(user_id=demo.id, display_name="Usuario Demo", high_contrast=False),
+            Profile(user_id=tato.id, display_name="Tato", high_contrast=False),
         ]
     )
 
     _create_default_board(db, demo.id, demo.id)
+    _create_default_board(db, tato.id, tato.id)
 
     db.add(
         EmergencyContact(
             user_id=demo.id,
+            name="Contacto de emergencia",
+            phone="+5491100000000",
+            relationship_type="familiar",
+            is_primary=True,
+        )
+    )
+    db.add(
+        EmergencyContact(
+            user_id=tato.id,
             name="Contacto de emergencia",
             phone="+5491100000000",
             relationship_type="familiar",

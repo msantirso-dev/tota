@@ -22,7 +22,7 @@ from app.api.routers import (
 from app.core.config import get_settings
 from app.core.database import Base, SessionLocal, engine
 from app.core.redis_client import get_redis
-from app.seed import seed_database
+from app.seed import ensure_extra_users, seed_database
 
 logging.basicConfig(
     level=logging.INFO,
@@ -73,6 +73,7 @@ def on_startup():
     db = SessionLocal()
     try:
         seed_database(db)
+        ensure_extra_users(db)
     finally:
         db.close()
     logger.info("TOTA AAC API started")
