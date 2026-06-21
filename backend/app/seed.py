@@ -42,7 +42,7 @@ INITIAL_CATEGORIES = [
 
 INITIAL_BUTTONS = [
     ("yo", "yo", "Necesidades", "#dbeafe", "user"),
-    ("quiero", "quiero", "Acciones", "#ede9fe", "hand"),
+    ("quiero", "quiero", "Acciones", "#ede9fe", "hand-helping"),
     ("no", "no", "Frases rápidas", "#fee2e2", "x"),
     ("sí", "sí", "Frases rápidas", "#dcfce7", "check"),
     ("más", "más", "Frases rápidas", "#fef3c7", "plus"),
@@ -78,7 +78,7 @@ AUTOMATION_ACTIONS = [
     ("Subir persiana", "blind_up", "arrow-up", "mock"),
     ("Bajar persiana", "blind_down", "arrow-down", "mock"),
     ("Encender TV", "tv_on", "tv", "mock"),
-    ("Apagar TV", "tv_off", "tv-off", "mock"),
+    ("Apagar TV", "tv_off", "tv-minimal", "mock"),
     ("Llamar ayuda", "llamar_ayuda", "phone", "mock"),
     ("Activar escena", "scene", "sparkles", "mock"),
     ("Cambiar temperatura", "temperature", "thermometer", "mock"),
