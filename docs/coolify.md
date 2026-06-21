@@ -1,72 +1,126 @@
-# Despliegue en Coolify — guía paso a paso
+# Coolify — configuración de dominio y SSL
 
-## 1. Configuración General
+El deploy puede estar **Running** y aun así ver:
+- `no available server` (503)
+- `NET::ERR_CERT_AUTHORITY_INVALID` (certificado inválido)
 
-| Campo | Valor |
-|-------|-------|
-| Build Pack | Docker Compose |
-| Base Directory | `/` |
-| Docker Compose Location | `/docker-compose.yaml` |
+Eso significa que **Traefik responde pero no enruta bien** al contenedor `frontend`, o **Let's Encrypt no pudo emitir el certificado**.
 
-## 2. Variables de entorno obligatorias
+> **No agregues labels Traefik manuales en el repo.** Coolify los genera al configurar el dominio en la UI. Labels duplicados causan 503 + SSL roto.
 
-En **Environment Variables** del recurso:
+---
+
+## Paso a paso en Coolify (obligatorio)
+
+### 1. Abrir el servicio correcto
+
+1. Proyecto **Tota** → recurso **tota** (Docker Compose)
+2. En la vista del stack, buscá la lista de servicios: `frontend`, `backend`, `postgres`, `redis`
+3. Hacé clic en **`frontend`** (no en la config general del stack)
+
+### 2. Generar dominio CON puerto :80
+
+1. En la sección **Domains** / **FQDNs**
+2. Clic en **Generate Domain** (genera labels Traefik automáticamente)
+3. Editá el dominio y dejalo exactamente así:
+
+```
+https://tota.pit.com.ar:80
+```
+
+El `:80` **no es opcional**. Sin él, Coolify omite `loadbalancer.server.port` y Traefik responde **503** ([issue #7525](https://github.com/coollabsio/coolify/issues/7525)).
+
+4. **Save** (no borres el `:80` al guardar)
+5. **Redeploy**
+
+### 3. Verificar labels generados
+
+1. En Configuration → **Show Deployable Compose**
+2. En el servicio `frontend` debe aparecer algo como:
+
+```yaml
+labels:
+  - traefik.enable=true
+  - traefik.http.services.https-0-....loadbalancer.server.port=80
+```
+
+Si **no hay labels traefik** en `frontend`, el dominio no quedó configurado.
+
+### 4. Restart Proxy
+
+**Servers → localhost → Restart Proxy**
+
+---
+
+## SSL / certificado inválido
+
+Let's Encrypt necesita validar el dominio. Verificá:
+
+### DNS
+
+```bash
+dig tota.pit.com.ar +short
+```
+
+Debe apuntar a la **IP pública del servidor Coolify**.
+
+### Cloudflare (si lo usás)
+
+| Modo | Qué hacer |
+|------|-----------|
+| Proxy naranja activo | Cambiá temporalmente a **DNS only** (nube gris) hasta que Coolify emita el certificado |
+| Full (Strict) | Necesitás certificado Origin de Cloudflare en Coolify, no Let's Encrypt directo |
+
+### Puertos del servidor
+
+- **80** y **443** abiertos en firewall
+- No otro servicio usando esos puertos
+
+### Probar HTTP primero
+
+Abrí `http://tota.pit.com.ar` (sin https). Si HTTP funciona pero HTTPS no, el problema es solo SSL.
+
+---
+
+## Variables de entorno
 
 ```env
 DOMAIN=tota.pit.com.ar
 FRONTEND_URL=https://tota.pit.com.ar
 API_URL=https://tota.pit.com.ar/api
 VITE_API_URL=/api
-
-POSTGRES_DB=tota
-POSTGRES_USER=tota
-POSTGRES_PASSWORD=<password-seguro>
-DATABASE_URL=postgresql://tota:<password-seguro>@postgres:5432/tota
-
-REDIS_URL=redis://redis:6379/0
-JWT_SECRET=<secreto-largo-aleatorio>
-JWT_ALGORITHM=HS256
+JWT_SECRET=<secreto-largo>
+POSTGRES_PASSWORD=<password>
+DATABASE_URL=postgresql://tota:<password>@postgres:5432/tota
 ```
 
-## 3. Dominio en el servicio frontend
+---
 
-El `docker-compose.yaml` ya incluye **labels Traefik** para `tota.pit.com.ar`.
+## Diagnóstico rápido
 
-Opcionalmente, en Coolify también podés configurar el dominio en el servicio `frontend`:
-
-- URL: `https://tota.pit.com.ar:80` ← **incluir `:80` es crítico**
-- Sin el `:80`, Coolify puede no generar el label `loadbalancer.server.port` y verás **503**
-
-## 4. Deploy
-
-1. **Save**
-2. **Redeploy**
-3. Esperar que los 4 contenedores estén **healthy**
-4. Si persiste 503: **Servers → Restart Proxy**
-
-## 5. Verificación
+En Coolify → Terminal del contenedor **frontend**:
 
 ```bash
-# DNS debe apuntar al servidor Coolify
-dig tota.pit.com.ar +short
-
-# Desde el servidor, probar el contenedor directamente
-docker ps | grep frontend
-docker exec <container-frontend> wget -qO- http://localhost/health
-# Debe responder: ok
+wget -qO- http://localhost/health
 ```
 
-## Errores comunes
+- Responde `ok` → la app funciona; el problema es Traefik/dominio/SSL
+- No responde → revisar logs del frontend
 
-| Síntoma | Causa | Solución |
-|---------|-------|----------|
-| **503 No available server** | Traefik sin ruta o sin puerto | Labels en compose + dominio con `:80` + Restart Proxy |
-| Contenedor Exited | Error en backend | Revisar Logs del backend |
-| 502 Bad Gateway | Frontend caído o puerto incorrecto | Verificar healthcheck frontend |
-| SSL error | DNS o Let's Encrypt | Verificar DNS y puertos 80/443 abiertos |
+En el servidor (SSH):
 
-## Notas técnicas
+```bash
+docker logs coolify-proxy --tail 50
+```
 
-- No uses redes Docker custom en `docker-compose.yaml`
-- El backend no necesita dominio propio; nginx en frontend hace proxy `/api` → `backend:8000`
-- Para desarrollo local usar `docker-compose.yml` (con puerto 80 publicado)
+Buscá errores de ACME o "no available server" para `tota.pit.com.ar`.
+
+---
+
+## Configuración General
+
+| Campo | Valor |
+|-------|-------|
+| Build Pack | Docker Compose |
+| Base Directory | `/` |
+| Docker Compose Location | `/docker-compose.yaml` |
