@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.api.deps import get_current_user, require_roles
 from app.core.database import get_db
 from app.models import Board, Button, ButtonAction, User, UserRole
-from app.schemas import ButtonCreate, ButtonResponse, ButtonUpdate
+from app.schemas import ButtonCreate, ButtonReorderRequest, ButtonResponse, ButtonUpdate
 
 router = APIRouter(prefix="/buttons", tags=["buttons"])
 
@@ -70,14 +70,43 @@ def update_button(
     return db.query(Button).options(joinedload(Button.actions)).filter(Button.id == button.id).first()
 
 
+@router.post("/reorder", status_code=204)
+def reorder_buttons(
+    body: ButtonReorderRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.terapeuta, UserRole.familiar)),
+):
+    _check_board_access(db.query(Board).filter(Board.id == body.board_id).first(), current_user)
+    buttons = (
+        db.query(Button)
+        .filter(Button.board_id == body.board_id)
+        .order_by(Button.sort_order, Button.id)
+        .all()
+    )
+    button_map = {b.id: b for b in buttons}
+    seen: set[int] = set()
+    order = 0
+    for button_id in body.button_ids:
+        if button_id in button_map and button_id not in seen:
+            button_map[button_id].sort_order = order
+            order += 1
+            seen.add(button_id)
+    for button in buttons:
+        if button.id not in seen:
+            button.sort_order = order
+            order += 1
+    db.commit()
+
+
 @router.delete("/{button_id}", status_code=204)
 def delete_button(
     button_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.admin, UserRole.terapeuta)),
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.terapeuta, UserRole.familiar)),
 ):
     button = db.query(Button).filter(Button.id == button_id).first()
     if not button:
         raise HTTPException(status_code=404, detail="Botón no encontrado")
+    _check_board_access(db.query(Board).filter(Board.id == button.board_id).first(), current_user)
     db.delete(button)
     db.commit()

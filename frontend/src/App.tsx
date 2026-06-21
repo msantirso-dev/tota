@@ -9,6 +9,7 @@ import { LoginPage } from './pages/LoginPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { SettingsPage } from './pages/SettingsPage'
 import { UsersAdminPage } from './pages/UsersAdminPage'
+import { ChatAssistantPage } from './pages/ChatAssistantPage'
 import { AdminRoute } from './components/AdminRoute'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -27,6 +28,7 @@ export default function App() {
       <Route path="/perfil" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
       <Route path="/entorno" element={<PrivateRoute><EnvironmentPage /></PrivateRoute>} />
       <Route path="/historial" element={<PrivateRoute><HistoryPage /></PrivateRoute>} />
+      <Route path="/asistente" element={<PrivateRoute><ChatAssistantPage /></PrivateRoute>} />
       <Route path="/configuracion" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
       <Route path="/admin/usuarios" element={<PrivateRoute><AdminRoute><UsersAdminPage /></AdminRoute></PrivateRoute>} />
       <Route path="/emergencia" element={<PrivateRoute><EmergencyPage /></PrivateRoute>} />

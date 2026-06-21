@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AppLayout } from '../components/AppLayout'
+import { BoardSelector } from '../components/BoardSelector'
 import { ButtonGrid } from '../components/ButtonGrid'
 import { EmergencyButton } from '../components/EmergencyButton'
 import { PhraseBar } from '../components/PhraseBar'
 import { Toolbar } from '../components/Toolbar'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
-import type { AACButton, Board, Category, SelectedToken } from '../types'
-import { buildPhrase, speakText } from '../utils/phrase'
+import type { AACButton, Board, BoardSummary, Category, SelectedToken } from '../types'
+import { BOARD_STORAGE_KEY, normalizeBoard, sortButtons } from '../utils/board'
+import { buildPhrase, speakText, unlockSpeech } from '../utils/phrase'
 
 export function DashboardPage() {
   const { profile } = useAuth()
+  const [boards, setBoards] = useState<BoardSummary[]>([])
+  const [selectedBoardId, setSelectedBoardId] = useState<number | null>(null)
   const [board, setBoard] = useState<Board | null>(null)
   const [activeCategory, setActiveCategory] = useState<number | 'all'>('all')
   const [tokens, setTokens] = useState<SelectedToken[]>([])
@@ -18,13 +22,35 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const loadBoard = useCallback(async (boardId: number) => {
+    const data = normalizeBoard(await api.getBoard(boardId))
+    setBoard(data)
+    setSelectedBoardId(boardId)
+    localStorage.setItem(BOARD_STORAGE_KEY, String(boardId))
+    setActiveCategory('all')
+    setTokens([])
+  }, [])
+
   useEffect(() => {
     api
-      .getDefaultBoard()
-      .then(setBoard)
+      .listBoards()
+      .then(async (list) => {
+        setBoards(list)
+        if (!list.length) {
+          setError('No hay tableros disponibles')
+          return
+        }
+        const stored = localStorage.getItem(BOARD_STORAGE_KEY)
+        const storedId = stored ? Number(stored) : null
+        const target =
+          (storedId && list.some((b) => b.id === storedId) && storedId) ||
+          list.find((b) => b.is_default)?.id ||
+          list[0].id
+        await loadBoard(target)
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'No se pudo cargar el tablero'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [loadBoard])
 
   const phrase = buildPhrase(tokens.map((t) => t.spoken))
 
@@ -39,26 +65,37 @@ export function DashboardPage() {
     return () => clearTimeout(timer)
   }, [phrase])
 
-  const visibleButtons: AACButton[] =
+  const visibleButtons: AACButton[] = sortButtons(
     board?.buttons.filter((b) =>
       activeCategory === 'all' ? true : b.category_id === activeCategory,
-    ) ?? []
+    ) ?? [],
+  )
 
-  const handleSelect = useCallback((button: AACButton) => {
-    if (button.is_emergency) return
-    setTokens((prev) => [
-      ...prev,
-      {
-        buttonId: button.id,
-        label: button.label,
-        spoken: button.spoken_text,
-        imageUrl: button.image_url,
-      },
-    ])
-  }, [])
+  const handleSelect = useCallback(
+    (button: AACButton) => {
+      if (button.is_emergency) return
+      unlockSpeech()
+      speakText(button.spoken_text, {
+        rate: profile?.voice_rate,
+        pitch: profile?.voice_pitch,
+        language: profile?.language,
+      })
+      setTokens((prev) => [
+        ...prev,
+        {
+          buttonId: button.id,
+          label: button.label,
+          spoken: button.spoken_text,
+          imageUrl: button.image_url,
+        },
+      ])
+    },
+    [profile],
+  )
 
   const handleSpeak = async () => {
     if (!phrase) return
+    unlockSpeech()
     speakText(phrase, {
       rate: profile?.voice_rate,
       pitch: profile?.voice_pitch,
@@ -103,7 +140,24 @@ export function DashboardPage() {
         onSuggestionClick={handleSuggestionClick}
       />
 
-      <div className="flex flex-wrap gap-2 px-4 pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
+        <BoardSelector
+          boards={boards}
+          selectedId={selectedBoardId}
+          onChange={(id) => {
+            loadBoard(id).catch((err) =>
+              setError(err instanceof Error ? err.message : 'No se pudo cambiar de tablero'),
+            )
+          }}
+        />
+        {board && (
+          <p className="text-xs text-slate-500">
+            {board.buttons.length} botones · {board.categories.length} categorías
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-2 px-4 pt-3">
         <CategoryChip
           active={activeCategory === 'all'}
           label="Todos"

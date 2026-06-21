@@ -23,17 +23,20 @@ class OpenAICompatibleProvider(AIProvider):
         return [line.strip() for line in response.text.split("\n") if line.strip()]
 
     async def complete(self, prompt: str, context: dict | None = None) -> AIResponse:
+        return await self.chat([{"role": "user", "content": prompt}], context)
+
+    async def chat(self, messages: list[dict[str, str]], context: dict | None = None) -> AIResponse:
         if not self.base_url:
             return AIResponse(text="", source="openai_compatible_unconfigured")
         try:
             headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(
                     f"{self.base_url}/v1/chat/completions",
                     headers=headers,
                     json={
                         "model": "gpt-4o-mini",
-                        "messages": [{"role": "user", "content": prompt}],
+                        "messages": messages,
                     },
                 )
                 resp.raise_for_status()

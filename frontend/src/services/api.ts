@@ -2,6 +2,9 @@ import type {
   AACButton,
   AutomationAction,
   Board,
+  BoardSummary,
+  ChatMessage,
+  ChatStatus,
   EmergencyContact,
   HistoryEntry,
   Phrase,
@@ -70,6 +73,28 @@ class ApiClient {
     return this.request<Board>('/boards/default')
   }
 
+  listBoards() {
+    return this.request<BoardSummary[]>('/boards')
+  }
+
+  createBoard(data: { name: string; description?: string; is_default?: boolean; grid_columns?: number }) {
+    return this.request<BoardSummary>('/boards', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  updateBoard(id: number, data: Partial<BoardSummary>) {
+    return this.request<BoardSummary>(`/boards/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  deleteBoard(id: number) {
+    return this.request(`/boards/${id}`, { method: 'DELETE' })
+  }
+
   getBoard(id: number) {
     return this.request<Board>(`/boards/${id}`)
   }
@@ -93,6 +118,17 @@ class ApiClient {
     return this.request<{ suggestions: string[]; source: string }>('/suggestions', {
       method: 'POST',
       body: JSON.stringify({ phrase, use_ai }),
+    })
+  }
+
+  getChatStatus() {
+    return this.request<ChatStatus>('/chat/status')
+  }
+
+  sendChat(messages: ChatMessage[]) {
+    return this.request<{ reply: string; source: string }>('/chat', {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
     })
   }
 
@@ -137,6 +173,13 @@ class ApiClient {
 
   deleteButton(id: number) {
     return this.request(`/buttons/${id}`, { method: 'DELETE' })
+  }
+
+  reorderButtons(boardId: number, buttonIds: number[]) {
+    return this.request('/buttons/reorder', {
+      method: 'POST',
+      body: JSON.stringify({ board_id: boardId, button_ids: buttonIds }),
+    })
   }
 
   createCategory(data: Record<string, unknown>) {

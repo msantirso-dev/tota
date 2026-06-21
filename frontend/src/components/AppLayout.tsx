@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   AlertTriangle,
+  Bot,
   Clock,
   Grid3X3,
   Home,
@@ -16,6 +17,7 @@ const baseLinks = [
   { to: '/editor', label: 'Editor', icon: Home },
   { to: '/entorno', label: 'Entorno', icon: Home },
   { to: '/historial', label: 'Historial', icon: Clock },
+  { to: '/asistente', label: 'Asistente', icon: Bot },
   { to: '/perfil', label: 'Perfil', icon: User },
   { to: '/configuracion', label: 'Config', icon: Settings },
   { to: '/emergencia', label: 'Emergencia', icon: AlertTriangle, emergency: true },

@@ -6,6 +6,13 @@ from app.core.database import get_db
 from app.models import Board, Button, User, UserRole
 from app.schemas import BoardCreate, BoardDetailResponse, BoardResponse, BoardUpdate
 
+
+def _sort_board_relations(board: Board) -> Board:
+    board.categories.sort(key=lambda c: (c.sort_order, c.id))
+    board.buttons.sort(key=lambda b: (b.sort_order, b.id))
+    return board
+
+
 router = APIRouter(prefix="/boards", tags=["boards"])
 
 
@@ -44,7 +51,7 @@ def get_default_board(
 
     if not board:
         raise HTTPException(status_code=404, detail="No hay tableros disponibles")
-    return board
+    return _sort_board_relations(board)
 
 
 @router.get("/{board_id}", response_model=BoardDetailResponse)
@@ -66,7 +73,7 @@ def get_board(
         and board.owner_id != current_user.id
     ):
         raise HTTPException(status_code=403, detail="Permisos insuficientes")
-    return board
+    return _sort_board_relations(board)
 
 
 @router.post("", response_model=BoardResponse, status_code=201)
@@ -113,10 +120,35 @@ def update_board(
 def delete_board(
     board_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.admin, UserRole.terapeuta)),
+    current_user: User = Depends(get_current_user),
 ):
     board = db.query(Board).filter(Board.id == board_id).first()
     if not board:
         raise HTTPException(status_code=404, detail="Tablero no encontrado")
+    if current_user.role not in (UserRole.admin, UserRole.terapeuta, UserRole.familiar):
+        raise HTTPException(status_code=403, detail="Permisos insuficientes")
+    if (
+        current_user.role == UserRole.familiar
+        and board.owner_id != current_user.id
+    ):
+        raise HTTPException(status_code=403, detail="Permisos insuficientes")
+
+    remaining = db.query(Board).filter(Board.owner_id == board.owner_id, Board.id != board_id).count()
+    if remaining == 0:
+        raise HTTPException(status_code=400, detail="No se puede eliminar el único tablero del usuario")
+
+    was_default = board.is_default
     db.delete(board)
+    db.flush()
+
+    if was_default:
+        next_board = (
+            db.query(Board)
+            .filter(Board.owner_id == board.owner_id)
+            .order_by(Board.id)
+            .first()
+        )
+        if next_board:
+            next_board.is_default = True
+
     db.commit()

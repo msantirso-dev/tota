@@ -12,6 +12,7 @@ from app.api.routers import (
     boards,
     buttons,
     categories,
+    chat,
     emergency,
     history,
     phrases,
@@ -62,6 +63,7 @@ app.include_router(profiles.router, prefix=API_PREFIX)
 app.include_router(boards.router, prefix=API_PREFIX)
 app.include_router(categories.router, prefix=API_PREFIX)
 app.include_router(buttons.router, prefix=API_PREFIX)
+app.include_router(chat.router, prefix=API_PREFIX)
 app.include_router(phrases.router, prefix=API_PREFIX)
 app.include_router(history.router, prefix=API_PREFIX)
 app.include_router(suggestions.router, prefix=API_PREFIX)

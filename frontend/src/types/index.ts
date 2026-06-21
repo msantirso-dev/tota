@@ -64,6 +64,15 @@ export interface Board {
   buttons: AACButton[]
 }
 
+export interface BoardSummary {
+  id: number
+  owner_id: number
+  name: string
+  description: string | null
+  is_default: boolean
+  grid_columns: number
+}
+
 export interface Phrase {
   id: number
   user_id: number
@@ -110,4 +119,16 @@ export interface SelectedToken {
   label: string
   spoken: string
   imageUrl?: string | null
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export interface ChatStatus {
+  provider: string
+  available: boolean
+  model?: string | null
+  ollama_url?: string | null
 }

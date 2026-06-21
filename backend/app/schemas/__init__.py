@@ -160,6 +160,11 @@ class ButtonUpdate(BaseModel):
     category_id: int | None = None
 
 
+class ButtonReorderRequest(BaseModel):
+    board_id: int
+    button_ids: list[int] = Field(min_length=1)
+
+
 class ButtonResponse(ButtonBase):
     model_config = ConfigDict(from_attributes=True)
 
@@ -227,6 +232,27 @@ class SuggestionResponse(BaseModel):
     input_phrase: str
     suggestions: list[str]
     source: str
+
+
+class ChatMessage(BaseModel):
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage] = Field(min_length=1, max_length=30)
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    source: str
+
+
+class ChatStatusResponse(BaseModel):
+    provider: str
+    available: bool
+    model: str | None = None
+    ollama_url: str | None = None
 
 
 class AutomationActionBase(BaseModel):

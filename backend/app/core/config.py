@@ -22,7 +22,8 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 60 * 24 * 7
 
     ai_provider: str = "mock"
-    ollama_base_url: str = "http://ollama:11434"
+    ollama_base_url: str = "http://192.168.2.252:11434"
+    ollama_model: str = "llama3"
     openai_compatible_base_url: str = ""
     openai_compatible_api_key: str = ""
 
