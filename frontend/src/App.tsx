@@ -8,6 +8,8 @@ import { HistoryPage } from './pages/HistoryPage'
 import { LoginPage } from './pages/LoginPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { SettingsPage } from './pages/SettingsPage'
+import { UsersAdminPage } from './pages/UsersAdminPage'
+import { AdminRoute } from './components/AdminRoute'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -26,6 +28,7 @@ export default function App() {
       <Route path="/entorno" element={<PrivateRoute><EnvironmentPage /></PrivateRoute>} />
       <Route path="/historial" element={<PrivateRoute><HistoryPage /></PrivateRoute>} />
       <Route path="/configuracion" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
+      <Route path="/admin/usuarios" element={<PrivateRoute><AdminRoute><UsersAdminPage /></AdminRoute></PrivateRoute>} />
       <Route path="/emergencia" element={<PrivateRoute><EmergencyPage /></PrivateRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

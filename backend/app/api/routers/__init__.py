@@ -11,6 +11,7 @@ from app.api.routers import (
     settings,
     suggestions,
     tts,
+    uploads,
     users,
 )
 
@@ -27,5 +28,6 @@ __all__ = [
     "settings",
     "suggestions",
     "tts",
+    "uploads",
     "users",
 ]

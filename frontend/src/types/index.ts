@@ -109,4 +109,5 @@ export interface SelectedToken {
   buttonId: number
   label: string
   spoken: string
+  imageUrl?: string | null
 }

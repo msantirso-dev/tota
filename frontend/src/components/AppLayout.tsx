@@ -7,10 +7,11 @@ import {
   LogOut,
   Settings,
   User,
+  Users,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
-const links = [
+const baseLinks = [
   { to: '/', label: 'Tablero', icon: Grid3X3 },
   { to: '/editor', label: 'Editor', icon: Home },
   { to: '/entorno', label: 'Entorno', icon: Home },
@@ -21,7 +22,16 @@ const links = [
 ]
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { logout, profile } = useAuth()
+  const { logout, profile, user } = useAuth()
+
+  const links =
+    user?.role === 'admin' || user?.role === 'terapeuta'
+      ? [
+          ...baseLinks.slice(0, 2),
+          { to: '/admin/usuarios', label: 'Usuarios', icon: Users },
+          ...baseLinks.slice(2),
+        ]
+      : baseLinks
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">

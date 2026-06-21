@@ -3,6 +3,8 @@ import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from app.api.routers import (
     auth,
@@ -17,6 +19,7 @@ from app.api.routers import (
     settings as settings_router,
     suggestions,
     tts,
+    uploads,
     users,
 )
 from app.core.config import get_settings
@@ -65,6 +68,11 @@ app.include_router(automation.router, prefix=API_PREFIX)
 app.include_router(emergency.router, prefix=API_PREFIX)
 app.include_router(settings_router.router, prefix=API_PREFIX)
 app.include_router(tts.router, prefix=API_PREFIX)
+app.include_router(uploads.router, prefix=API_PREFIX)
+
+uploads_path = Path("/app/uploads/images")
+uploads_path.mkdir(parents=True, exist_ok=True)
+app.mount(f"{API_PREFIX}/uploads/images", StaticFiles(directory=str(uploads_path)), name="uploads")
 
 
 @app.on_event("startup")

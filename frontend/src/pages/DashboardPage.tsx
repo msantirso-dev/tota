@@ -48,7 +48,12 @@ export function DashboardPage() {
     if (button.is_emergency) return
     setTokens((prev) => [
       ...prev,
-      { buttonId: button.id, label: button.label, spoken: button.spoken_text },
+      {
+        buttonId: button.id,
+        label: button.label,
+        spoken: button.spoken_text,
+        imageUrl: button.image_url,
+      },
     ])
   }, [])
 

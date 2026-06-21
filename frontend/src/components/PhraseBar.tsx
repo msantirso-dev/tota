@@ -1,4 +1,6 @@
 import { buildPhrase } from '../utils/phrase'
+import { getPictogram } from '../utils/pictograms'
+import { api } from '../services/api'
 import type { SelectedToken } from '../types'
 
 interface PhraseBarProps {
@@ -12,6 +14,34 @@ export function PhraseBar({ tokens, suggestions, onSuggestionClick }: PhraseBarP
 
   return (
     <section className="surface sticky top-0 z-10 border-b p-4 shadow-sm">
+      {tokens.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          {tokens.map((token) => (
+            <div
+              key={`${token.buttonId}-${token.label}`}
+              className="flex flex-col items-center rounded-xl border bg-white px-2 py-1 shadow-sm"
+            >
+              {token.imageUrl ? (
+                <img
+                  src={api.resolveMediaUrl(token.imageUrl) ?? ''}
+                  alt=""
+                  className="h-10 w-10 object-contain"
+                />
+              ) : getPictogram(token.label, token.spoken) ? (
+                <span className="flex h-10 w-10 items-center justify-center text-2xl" aria-hidden>
+                  {getPictogram(token.label, token.spoken)}
+                </span>
+              ) : (
+                <span className="flex h-10 w-10 items-center justify-center text-lg font-bold">
+                  {token.label.charAt(0).toUpperCase()}
+                </span>
+              )}
+              <span className="text-xs opacity-70">{token.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="mb-3 min-h-[4rem] rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/60 px-4 py-3 text-aac-2xl font-semibold high-contrast:border-yellow-300 high-contrast:bg-black">
         {phrase || 'Tocá los botones para armar una frase...'}
       </div>

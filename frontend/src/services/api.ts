@@ -8,6 +8,7 @@ import type {
   Profile,
   User,
 } from '../types'
+import type { UserCreatePayload, UserUpdatePayload } from '../types/users'
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
@@ -147,6 +148,51 @@ class ApiClient {
 
   getSettings() {
     return this.request<Array<{ key: string; value: Record<string, unknown> }>>('/settings')
+  }
+
+  listUsers() {
+    return this.request<User[]>('/users')
+  }
+
+  createUser(data: UserCreatePayload) {
+    return this.request<User>('/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  updateUser(id: number, data: UserUpdatePayload) {
+    return this.request<User>(`/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async uploadButtonImage(buttonId: number, file: File) {
+    const form = new FormData()
+    form.append('file', file)
+    const headers: Record<string, string> = {}
+    if (this.token) headers.Authorization = `Bearer ${this.token}`
+    const response = await fetch(`${API_BASE}/uploads/button/${buttonId}`, {
+      method: 'POST',
+      headers,
+      body: form,
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Error al subir imagen' }))
+      throw new Error(error.detail || 'Error al subir imagen')
+    }
+    return response.json() as Promise<{ image_url: string; button_id: number }>
+  }
+
+  removeButtonImage(buttonId: number) {
+    return this.request(`/uploads/button/${buttonId}/image`, { method: 'DELETE' })
+  }
+
+  resolveMediaUrl(url: string | null | undefined) {
+    if (!url) return null
+    if (url.startsWith('http') || url.startsWith('/')) return url
+    return `${API_BASE}/${url.replace(/^\//, '')}`
   }
 }
 
