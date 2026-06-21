@@ -85,35 +85,9 @@ AUTOMATION_ACTIONS = [
 ]
 
 
-def seed_database(db: Session) -> None:
-    if db.query(User).filter(User.email == "admin@tota.pit.com.ar").first():
-        logger.info("Database already seeded, skipping")
-        return
-
-    admin = User(
-        email="admin@tota.pit.com.ar",
-        full_name="Administrador TOTA",
-        role=UserRole.admin,
-        hashed_password=get_password_hash("admin123"),
-    )
-    demo = User(
-        email="usuario@tota.pit.com.ar",
-        full_name="Usuario Demo",
-        role=UserRole.usuario,
-        hashed_password=get_password_hash("usuario123"),
-    )
-    db.add_all([admin, demo])
-    db.flush()
-
-    db.add_all(
-        [
-            Profile(user_id=admin.id, display_name="Administrador TOTA"),
-            Profile(user_id=demo.id, display_name="Usuario Demo", high_contrast=False),
-        ]
-    )
-
+def _create_default_board(db: Session, owner_id: int, automation_user_id: int) -> Board:
     board = Board(
-        owner_id=demo.id,
+        owner_id=owner_id,
         name="Tablero principal",
         description="Tablero AAC inicial de TOTA",
         is_default=True,
@@ -160,7 +134,7 @@ def seed_database(db: Session) -> None:
     for name, action_type, icon, provider in AUTOMATION_ACTIONS:
         db.add(
             AutomationAction(
-                user_id=demo.id,
+                user_id=automation_user_id,
                 name=name,
                 action_type=action_type,
                 provider=provider,
@@ -168,6 +142,38 @@ def seed_database(db: Session) -> None:
                 requires_confirmation=True,
             )
         )
+
+    return board
+
+
+def seed_database(db: Session) -> None:
+    if db.query(User).filter(User.email == "admin@tota.pit.com.ar").first():
+        logger.info("Database already seeded, skipping")
+        return
+
+    admin = User(
+        email="admin@tota.pit.com.ar",
+        full_name="Administrador TOTA",
+        role=UserRole.admin,
+        hashed_password=get_password_hash("admin123"),
+    )
+    demo = User(
+        email="usuario@tota.pit.com.ar",
+        full_name="Usuario Demo",
+        role=UserRole.usuario,
+        hashed_password=get_password_hash("usuario123"),
+    )
+    db.add_all([admin, demo])
+    db.flush()
+
+    db.add_all(
+        [
+            Profile(user_id=admin.id, display_name="Administrador TOTA"),
+            Profile(user_id=demo.id, display_name="Usuario Demo", high_contrast=False),
+        ]
+    )
+
+    _create_default_board(db, demo.id, demo.id)
 
     db.add(
         EmergencyContact(

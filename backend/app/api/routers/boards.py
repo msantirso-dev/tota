@@ -25,19 +25,23 @@ def get_default_board(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    board = (
+    board_query = (
         db.query(Board)
         .options(joinedload(Board.categories), joinedload(Board.buttons).joinedload(Button.actions))
-        .filter(Board.owner_id == current_user.id, Board.is_default.is_(True))
+    )
+
+    board = (
+        board_query.filter(Board.owner_id == current_user.id, Board.is_default.is_(True))
         .first()
     )
     if not board:
-        board = (
-            db.query(Board)
-            .options(joinedload(Board.categories), joinedload(Board.buttons).joinedload(Button.actions))
-            .filter(Board.owner_id == current_user.id)
-            .first()
-        )
+        board = board_query.filter(Board.owner_id == current_user.id).first()
+
+    if not board and current_user.role in (UserRole.admin, UserRole.terapeuta, UserRole.familiar):
+        board = board_query.filter(Board.is_default.is_(True)).first()
+    if not board and current_user.role in (UserRole.admin, UserRole.terapeuta):
+        board = board_query.order_by(Board.id).first()
+
     if not board:
         raise HTTPException(status_code=404, detail="No hay tableros disponibles")
     return board

@@ -16,9 +16,14 @@ export function DashboardPage() {
   const [tokens, setTokens] = useState<SelectedToken[]>([])
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    api.getDefaultBoard().then(setBoard).finally(() => setLoading(false))
+    api
+      .getDefaultBoard()
+      .then(setBoard)
+      .catch((err) => setError(err instanceof Error ? err.message : 'No se pudo cargar el tablero'))
+      .finally(() => setLoading(false))
   }, [])
 
   const phrase = buildPhrase(tokens.map((t) => t.spoken))
@@ -69,6 +74,20 @@ export function DashboardPage() {
 
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center">Cargando tablero...</div>
+  }
+
+  if (error || !board) {
+    return (
+      <AppLayout>
+        <div className="mx-auto max-w-lg p-8 text-center">
+          <p className="mb-2 text-xl font-bold text-red-600">Tablero no disponible</p>
+          <p className="mb-4 text-slate-600">{error || 'No hay tablero configurado para este usuario.'}</p>
+          <p className="text-sm text-slate-500">
+            Probá ingresar con <strong>usuario@tota.pit.com.ar</strong> / <strong>usuario123</strong>
+          </p>
+        </div>
+      </AppLayout>
+    )
   }
 
   return (
