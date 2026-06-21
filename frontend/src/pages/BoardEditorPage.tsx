@@ -106,7 +106,7 @@ export function BoardEditorPage() {
                     label={button.label}
                     spokenText={button.spoken_text}
                     icon={button.icon}
-                    imageUrl={api.resolveMediaUrl(button.image_url)}
+                    imageUrl={button.image_url}
                   />
                 </div>
                 <div className="min-w-0 flex-1">

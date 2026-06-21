@@ -25,7 +25,8 @@ from app.api.routers import (
 from app.core.config import get_settings
 from app.core.database import Base, SessionLocal, engine
 from app.core.redis_client import get_redis
-from app.seed import ensure_extra_users, seed_database
+from app.db_schema import ensure_schema_updates
+from app.seed import ensure_button_pictograms, ensure_extra_users, seed_database
 
 logging.basicConfig(
     level=logging.INFO,
@@ -70,20 +71,35 @@ app.include_router(settings_router.router, prefix=API_PREFIX)
 app.include_router(tts.router, prefix=API_PREFIX)
 app.include_router(uploads.router, prefix=API_PREFIX)
 
-uploads_path = Path("/app/uploads/images")
-uploads_path.mkdir(parents=True, exist_ok=True)
-app.mount(f"{API_PREFIX}/uploads/images", StaticFiles(directory=str(uploads_path)), name="uploads")
+
+def _configure_uploads() -> None:
+    uploads_path = Path("/app/uploads/images")
+    try:
+        uploads_path.mkdir(parents=True, exist_ok=True)
+        app.mount(
+            f"{API_PREFIX}/uploads/images",
+            StaticFiles(directory=str(uploads_path)),
+            name="uploads",
+        )
+    except OSError as exc:
+        logger.warning("Almacenamiento de uploads no disponible: %s", exc)
 
 
 @app.on_event("startup")
 def on_startup():
-    Base.metadata.create_all(bind=engine)
-    db = SessionLocal()
+    _configure_uploads()
     try:
-        seed_database(db)
-        ensure_extra_users(db)
-    finally:
-        db.close()
+        Base.metadata.create_all(bind=engine)
+        ensure_schema_updates()
+        db = SessionLocal()
+        try:
+            seed_database(db)
+            ensure_extra_users(db)
+            ensure_button_pictograms(db)
+        finally:
+            db.close()
+    except Exception:
+        logger.exception("Error en inicialización de base de datos")
     logger.info("TOTA AAC API started")
 
 

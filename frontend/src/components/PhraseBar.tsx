@@ -1,5 +1,5 @@
 import { buildPhrase } from '../utils/phrase'
-import { getPictogram } from '../utils/pictograms'
+import { getPictogram, getPictogramImageUrl } from '../utils/pictograms'
 import { api } from '../services/api'
 import type { SelectedToken } from '../types'
 
@@ -16,14 +16,17 @@ export function PhraseBar({ tokens, suggestions, onSuggestionClick }: PhraseBarP
     <section className="surface sticky top-0 z-10 border-b p-4 shadow-sm">
       {tokens.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          {tokens.map((token) => (
+          {tokens.map((token) => {
+            const tokenImage =
+              token.imageUrl ?? getPictogramImageUrl(token.label, token.spoken)
+            return (
             <div
               key={`${token.buttonId}-${token.label}`}
               className="flex flex-col items-center rounded-xl border bg-white px-2 py-1 shadow-sm"
             >
-              {token.imageUrl ? (
+              {tokenImage ? (
                 <img
-                  src={api.resolveMediaUrl(token.imageUrl) ?? ''}
+                  src={api.resolveMediaUrl(tokenImage) ?? tokenImage}
                   alt=""
                   className="h-10 w-10 object-contain"
                 />
@@ -38,7 +41,8 @@ export function PhraseBar({ tokens, suggestions, onSuggestionClick }: PhraseBarP
               )}
               <span className="text-xs opacity-70">{token.label}</span>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

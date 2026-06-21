@@ -1,6 +1,6 @@
 import * as LucideIcons from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { getPictogram } from '../utils/pictograms'
+import { getPictogram, getPictogramImageUrl } from '../utils/pictograms'
 import { api } from '../services/api'
 
 interface ButtonVisualProps {
@@ -21,16 +21,19 @@ function iconFromName(name: string): LucideIcon | null {
 
 export function ButtonVisual({ label, spokenText, icon, imageUrl, size = 'lg' }: ButtonVisualProps) {
   const pictogram = getPictogram(label, spokenText)
+  const pictogramImage = getPictogramImageUrl(label, spokenText)
+  const resolvedImage = imageUrl ?? pictogramImage
   const Icon = icon ? iconFromName(icon) : null
   const emojiSize = size === 'lg' ? 'text-5xl' : 'text-3xl'
   const iconSize = size === 'lg' ? 40 : 28
+  const imageSize = size === 'lg' ? 'h-16 w-16' : 'h-12 w-12'
 
-  if (imageUrl) {
+  if (resolvedImage) {
     return (
       <img
-        src={api.resolveMediaUrl(imageUrl) ?? imageUrl}
+        src={api.resolveMediaUrl(resolvedImage) ?? resolvedImage}
         alt=""
-        className="mb-2 h-14 w-14 object-contain"
+        className={`mb-1 ${imageSize} object-contain`}
       />
     )
   }

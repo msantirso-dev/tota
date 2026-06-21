@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal, engine, Base
 from app.core.security import get_password_hash
+from app.aac_pictograms import default_image_url
 from app.models import (
     AutomationAction,
     Board,
@@ -113,6 +114,7 @@ def _create_default_board(db: Session, owner_id: int, automation_user_id: int) -
                 spoken_text=spoken,
                 color=color,
                 icon=icon,
+                image_url=default_image_url(label, spoken),
                 sort_order=idx,
                 is_emergency=is_emergency,
             )
@@ -126,6 +128,7 @@ def _create_default_board(db: Session, owner_id: int, automation_user_id: int) -
             spoken_text="Necesito ayuda urgente",
             color="#ef4444",
             icon="alert-triangle",
+            image_url=default_image_url("emergencia", "Necesito ayuda urgente"),
             sort_order=999,
             is_emergency=True,
         )
@@ -180,6 +183,30 @@ def _create_usuario(
 
 
 TATO_EMAIL = "tato@tota.pit.com.ar"
+
+
+def ensure_button_pictograms(db: Session) -> None:
+    """Asigna pictogramas ARASAAC a botones existentes sin imagen personalizada."""
+    try:
+        buttons = db.query(Button).filter(Button.image_url.is_(None)).all()
+    except Exception:
+        logger.exception("No se pudieron cargar botones para pictogramas AAC")
+        db.rollback()
+        return
+
+    updated = 0
+    for button in buttons:
+        url = default_image_url(button.label, button.spoken_text)
+        if url:
+            button.image_url = url
+            updated += 1
+    if updated:
+        try:
+            db.commit()
+            logger.info("Pictogramas AAC asignados a %s botones", updated)
+        except Exception:
+            logger.exception("Error al guardar pictogramas AAC")
+            db.rollback()
 
 
 def ensure_extra_users(db: Session) -> None:
