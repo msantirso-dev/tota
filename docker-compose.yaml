@@ -5,8 +5,10 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
     restart: unless-stopped
-    expose:
+    ports:
       - "80"
+    environment:
+      SERVICE_FQDN_FRONTEND_80: ${SERVICE_FQDN_FRONTEND_80:-}
     depends_on:
       backend:
         condition: service_healthy
@@ -16,6 +18,21 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    labels:
+      - traefik.enable=true
+      - traefik.http.middlewares.gzip.compress=true
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      - "traefik.http.routers.tota-http.rule=Host(`${DOMAIN:-tota.pit.com.ar}`)"
+      - traefik.http.routers.tota-http.entrypoints=http
+      - traefik.http.routers.tota-http.middlewares=redirect-to-https
+      - traefik.http.routers.tota-http.service=tota-web
+      - "traefik.http.routers.tota-https.rule=Host(`${DOMAIN:-tota.pit.com.ar}`)"
+      - traefik.http.routers.tota-https.entrypoints=https
+      - traefik.http.routers.tota-https.tls=true
+      - traefik.http.routers.tota-https.tls.certresolver=letsencrypt
+      - traefik.http.routers.tota-https.middlewares=gzip
+      - traefik.http.routers.tota-https.service=tota-web
+      - traefik.http.services.tota-web.loadbalancer.server.port=80
 
   backend:
     build:
