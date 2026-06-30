@@ -3,9 +3,12 @@ import { AlertTriangle } from 'lucide-react'
 import { AppLayout } from '../components/AppLayout'
 import { api } from '../services/api'
 import type { EmergencyContact } from '../types'
-import { speakText } from '../utils/phrase'
+import { speakWithProfile } from '../utils/tts'
+
+import { useAuth } from '../contexts/AuthContext'
 
 export function EmergencyPage() {
+  const { profile } = useAuth()
   const [contacts, setContacts] = useState<EmergencyContact[]>([])
   const [step, setStep] = useState<'idle' | 'confirm' | 'done'>('idle')
   const [message, setMessage] = useState('')
@@ -15,13 +18,13 @@ export function EmergencyPage() {
   }, [])
 
   const handleFirstClick = () => {
-    speakText('¿Confirmás que necesitás ayuda de emergencia?')
+    void speakWithProfile('¿Confirmás que necesitás ayuda de emergencia?', profile)
     setStep('confirm')
   }
 
   const handleConfirm = async () => {
     const result = await api.triggerEmergency('Necesito ayuda urgente', true)
-    speakText('Emergencia activada. Se notificó a tus contactos.')
+    void speakWithProfile('Emergencia activada. Se notificó a tus contactos.', profile)
     setMessage(result.message)
     setStep('done')
   }

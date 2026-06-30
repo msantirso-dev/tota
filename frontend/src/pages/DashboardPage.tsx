@@ -9,7 +9,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
 import type { AACButton, Board, BoardSummary, Category, SelectedToken } from '../types'
 import { BOARD_STORAGE_KEY, normalizeBoard, sortButtons } from '../utils/board'
-import { buildPhrase, speakText, unlockSpeech } from '../utils/phrase'
+import { buildPhrase } from '../utils/phrase'
+import { speakWithProfile } from '../utils/tts'
 
 export function DashboardPage() {
   const { profile } = useAuth()
@@ -74,12 +75,7 @@ export function DashboardPage() {
   const handleSelect = useCallback(
     (button: AACButton) => {
       if (button.is_emergency) return
-      unlockSpeech()
-      speakText(button.spoken_text, {
-        rate: profile?.voice_rate,
-        pitch: profile?.voice_pitch,
-        language: profile?.language,
-      })
+      void speakWithProfile(button.spoken_text, profile)
       setTokens((prev) => [
         ...prev,
         {
@@ -95,23 +91,14 @@ export function DashboardPage() {
 
   const handleSpeak = async () => {
     if (!phrase) return
-    unlockSpeech()
-    speakText(phrase, {
-      rate: profile?.voice_rate,
-      pitch: profile?.voice_pitch,
-      language: profile?.language,
-    })
+    await speakWithProfile(phrase, profile)
     await api.recordHistory(phrase, tokens.map((t) => t.buttonId))
   }
 
   const handleClear = () => setTokens([])
 
   const handleSuggestionClick = (text: string) => {
-    speakText(text, {
-      rate: profile?.voice_rate,
-      pitch: profile?.voice_pitch,
-      language: profile?.language,
-    })
+    void speakWithProfile(text, profile)
   }
 
   if (loading) {

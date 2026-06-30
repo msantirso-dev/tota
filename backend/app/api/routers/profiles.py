@@ -30,6 +30,9 @@ def update_my_profile(
     if not profile:
         raise HTTPException(status_code=404, detail="Perfil no encontrado")
     for key, value in body.model_dump(exclude_unset=True).items():
+        if key == "preferences" and value is not None:
+            profile.preferences = {**(profile.preferences or {}), **value}
+            continue
         setattr(profile, key, value)
     db.commit()
     db.refresh(profile)

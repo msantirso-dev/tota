@@ -362,6 +362,8 @@ class SettingResponse(SettingBase):
 class TTSRequest(BaseModel):
     text: str
     language: str = "es-AR"
+    provider: str | None = None
+    piper_url: str | None = None
 
 
 class TTSResponse(BaseModel):
@@ -369,6 +371,8 @@ class TTSResponse(BaseModel):
     provider: str
     use_browser: bool
     audio_url: str | None = None
+    audio_base64: str | None = None
+    audio_content_type: str = "audio/wav"
 
 
 class LoginRequest(BaseModel):

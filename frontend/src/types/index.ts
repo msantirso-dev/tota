@@ -132,3 +132,10 @@ export interface ChatStatus {
   model?: string | null
   ollama_url?: string | null
 }
+
+export type TtsMode = 'browser' | 'piper'
+
+export interface TtsPreferences {
+  tts_mode?: TtsMode
+  piper_url?: string
+}

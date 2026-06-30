@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { AppLayout } from '../components/AppLayout'
 import { api } from '../services/api'
 import type { HistoryEntry, Phrase } from '../types'
-import { speakText } from '../utils/phrase'
+import { speakWithProfile } from '../utils/tts'
 import { useAuth } from '../contexts/AuthContext'
 
 export function HistoryPage() {
@@ -26,13 +26,7 @@ export function HistoryPage() {
             {frequent.map((phrase) => (
               <button
                 key={phrase.id}
-                onClick={() =>
-                  speakText(phrase.spoken_text, {
-                    rate: profile?.voice_rate,
-                    pitch: profile?.voice_pitch,
-                    language: profile?.language,
-                  })
-                }
+                onClick={() => void speakWithProfile(phrase.spoken_text, profile)}
                 className="surface block w-full rounded-xl border p-4 text-left hover:bg-indigo-50"
               >
                 <p className="font-medium">{phrase.text}</p>

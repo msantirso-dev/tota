@@ -237,6 +237,39 @@ class ApiClient {
     if (url.startsWith('http') || url.startsWith('/')) return url
     return `${API_BASE}/${url.replace(/^\//, '')}`
   }
+
+  synthesizeTts(
+    text: string,
+    options: { provider?: string; piper_url?: string; language?: string } = {},
+  ) {
+    return this.request<{
+      text: string
+      provider: string
+      use_browser: boolean
+      audio_base64?: string | null
+      audio_content_type?: string
+    }>('/tts/synthesize', {
+      method: 'POST',
+      body: JSON.stringify({
+        text,
+        language: options.language ?? 'es-AR',
+        provider: options.provider,
+        piper_url: options.piper_url,
+      }),
+    })
+  }
+
+  testPiper(piperUrl: string, text = 'Hola, probando Piper') {
+    return this.request<{
+      provider: string
+      use_browser: boolean
+      audio_base64?: string | null
+      audio_content_type?: string
+    }>('/tts/test-piper', {
+      method: 'POST',
+      body: JSON.stringify({ piper_url: piperUrl, text }),
+    })
+  }
 }
 
 export const api = new ApiClient()
