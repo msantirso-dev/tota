@@ -108,7 +108,7 @@ export function ChatAssistantPage() {
           <p className="mx-auto mb-2 max-w-2xl px-4 text-center text-sm text-red-600">{error}</p>
         )}
 
-        <form onSubmit={handleSend} className="surface border-t px-4 py-4 pb-24 lg:pb-4">
+        <form onSubmit={handleSend} className="surface border-t px-4 py-4">
           <div className="mx-auto flex max-w-2xl gap-2">
             <input
               value={input}

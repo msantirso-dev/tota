@@ -270,7 +270,7 @@ export function BoardEditorPage() {
 
   return (
     <AppLayout>
-      <div className="p-6 pb-24">
+      <div className="p-4 sm:p-6">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="mb-2 text-2xl font-bold">Editor de tableros</h1>

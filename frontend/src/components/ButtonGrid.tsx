@@ -16,12 +16,12 @@ export function ButtonGrid({ buttons, onSelect }: ButtonGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 p-3 xs:grid-cols-2 sm:grid-cols-3 sm:gap-4 sm:p-4 md:grid-cols-4 md:gap-4 md:p-5 lg:grid-cols-5 lg:gap-5 lg:p-6 xl:grid-cols-6">
       {buttons.map((button) => (
         <button
           key={button.id}
           onClick={() => onSelect(button)}
-          className={`aac-button min-h-[7.5rem] ${button.is_emergency ? 'border-red-500 bg-red-100 high-contrast:bg-red-900' : ''}`}
+          className={`aac-button ${button.is_emergency ? 'border-red-500 bg-red-100 high-contrast:bg-red-900' : ''}`}
           style={{ backgroundColor: button.is_emergency ? undefined : button.color }}
           aria-label={button.label}
         >
@@ -30,8 +30,9 @@ export function ButtonGrid({ buttons, onSelect }: ButtonGridProps) {
             spokenText={button.spoken_text}
             icon={button.icon}
             imageUrl={button.image_url}
+            size="lg"
           />
-          <span className="text-aac-lg font-bold leading-tight">{button.label}</span>
+          <span className="mt-1 text-aac-lg font-bold leading-tight md:text-aac-xl">{button.label}</span>
         </button>
       ))}
     </div>

@@ -71,7 +71,7 @@ export function UsersAdminPage() {
 
   return (
     <AppLayout>
-      <div className="p-6 pb-24">
+      <div className="p-4 sm:p-6">
         <h1 className="mb-2 text-2xl font-bold">Administración de usuarios</h1>
         <p className="mb-6 text-slate-600">Crear y gestionar cuentas de TOTA AAC</p>
 

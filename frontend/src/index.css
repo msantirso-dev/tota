@@ -8,6 +8,11 @@
   --surface: #ffffff;
   --border: #e2e8f0;
   --primary: #6366f1;
+  --nav-bottom: 4.75rem;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 }
 
 .high-contrast {
@@ -18,21 +23,55 @@
   --primary: #ffff00;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
 body {
   @apply m-0 min-h-screen font-sans antialiased;
   background: var(--bg);
   color: var(--fg);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  overscroll-behavior-y: none;
 }
 
 #root {
   @apply min-h-screen;
 }
 
+/* Contenido con barra inferior (teléfono / tablet portrait) */
+.has-bottom-nav {
+  padding-bottom: calc(var(--nav-bottom) + var(--safe-bottom));
+}
+
 .aac-button {
-  @apply flex min-h-[5rem] flex-col items-center justify-center rounded-2xl border-2 p-3 text-center shadow-sm transition-transform active:scale-95;
+  @apply flex min-h-[5.5rem] flex-col items-center justify-center rounded-2xl border-2 p-3 text-center shadow-sm transition-transform active:scale-[0.97];
   border-color: var(--border);
   background: var(--surface);
   color: var(--fg);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+@media (min-width: 768px) {
+  .aac-button {
+    @apply min-h-[8.5rem] rounded-3xl p-4;
+  }
+}
+
+@media (min-width: 1024px) {
+  .aac-button {
+    @apply min-h-[9.5rem];
+  }
+}
+
+@media (min-width: 1280px) {
+  .aac-button {
+    @apply min-h-[10rem];
+  }
 }
 
 .aac-button:focus-visible {
@@ -44,11 +83,34 @@ body {
 }
 
 .aac-toolbar-btn {
-  @apply inline-flex min-h-[3.5rem] min-w-[3.5rem] items-center justify-center rounded-xl px-5 text-lg font-semibold transition active:scale-95;
+  @apply inline-flex min-h-[3.5rem] min-w-[3.5rem] items-center justify-center rounded-xl px-5 text-lg font-semibold transition active:scale-[0.97];
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (min-width: 768px) {
+  .aac-toolbar-btn {
+    @apply min-h-[4rem] min-w-[4rem] text-xl;
+  }
 }
 
 .surface {
   background: var(--surface);
   border-color: var(--border);
   color: var(--fg);
+}
+
+.bottom-nav {
+  padding-bottom: max(0.5rem, var(--safe-bottom));
+  padding-left: max(0.25rem, var(--safe-left));
+  padding-right: max(0.25rem, var(--safe-right));
+}
+
+.bottom-nav-scroll {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.bottom-nav-scroll::-webkit-scrollbar {
+  display: none;
 }

@@ -195,7 +195,7 @@ function CategoryChip({
   return (
     <button
       onClick={onClick}
-      className={`rounded-full px-4 py-2 text-sm font-medium ${
+      className={`rounded-full px-4 py-2.5 text-sm font-medium md:px-5 md:py-3 md:text-base ${
         active ? 'ring-2 ring-indigo-500' : 'opacity-80'
       }`}
       style={{ backgroundColor: color ?? '#e2e8f0' }}

@@ -24,9 +24,9 @@ export function ButtonVisual({ label, spokenText, icon, imageUrl, size = 'lg' }:
   const pictogramImage = getPictogramImageUrl(label, spokenText)
   const resolvedImage = imageUrl ?? pictogramImage
   const Icon = icon ? iconFromName(icon) : null
-  const emojiSize = size === 'lg' ? 'text-5xl' : 'text-3xl'
+  const emojiSize = size === 'lg' ? 'text-5xl md:text-6xl lg:text-7xl' : 'text-3xl md:text-4xl'
   const iconSize = size === 'lg' ? 40 : 28
-  const imageSize = size === 'lg' ? 'h-16 w-16' : 'h-12 w-12'
+  const imageSize = size === 'lg' ? 'h-14 w-14 md:h-20 md:w-20 lg:h-24 lg:w-24' : 'h-12 w-12 md:h-16 md:w-16'
 
   if (resolvedImage) {
     return (

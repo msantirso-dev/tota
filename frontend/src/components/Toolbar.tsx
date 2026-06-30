@@ -8,7 +8,7 @@ interface ToolbarProps {
 
 export function Toolbar({ onSpeak, onClear, disabled }: ToolbarProps) {
   return (
-    <div className="surface flex flex-wrap gap-3 border-t p-4 pb-24 lg:pb-4">
+    <div className="surface flex flex-wrap gap-3 border-t p-3 sm:p-4 md:sticky md:bottom-0 md:z-10">
       <button
         onClick={onSpeak}
         disabled={disabled}
