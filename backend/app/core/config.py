@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     openai_compatible_api_key: str = ""
 
     tts_provider: str = "browser"
-    piper_base_url: str = "http://192.168.2.252:5000"
+    piper_base_url: str = "http://piper-tts:10200"
 
     stt_provider: str = "mock"
     whisper_base_url: str = "http://whisper:9000"

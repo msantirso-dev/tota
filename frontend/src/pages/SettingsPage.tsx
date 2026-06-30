@@ -14,9 +14,11 @@ export function SettingsPage() {
   const [ttsMessage, setTtsMessage] = useState('')
   const [ttsTesting, setTtsTesting] = useState(false)
   const [ttsSaving, setTtsSaving] = useState(false)
+  const [serverPiperUrl, setServerPiperUrl] = useState<string | null>(null)
 
   useEffect(() => {
     api.getSettings().then(setSettings).catch(() => {})
+    api.getTtsConfig().then((c) => setServerPiperUrl(c.piper_url)).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -125,16 +127,31 @@ export function SettingsPage() {
                   className="mt-1"
                 />
                 <div className="w-full">
-                  <p className="font-medium">Piper (servidor local)</p>
-                  <p className="mb-3 text-sm text-slate-500">
-                    Conecta con un servidor Piper en tu red (ej.{' '}
-                    <code className="text-xs">http://192.168.2.252:5000</code>).
+                  <p className="font-medium">Piper (servidor TTS)</p>
+                  <p className="mb-2 text-sm text-slate-500">
+                    TOTA en Coolify usa la red Docker interna. Dejá la URL vacía para usar el
+                    servidor configurado en el backend.
                   </p>
+                  {serverPiperUrl && (
+                    <p className="mb-2 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-600">
+                      Servidor backend: <code>{serverPiperUrl}</code>
+                    </p>
+                  )}
+                  <ul className="mb-3 list-inside list-disc space-y-1 text-xs text-slate-500">
+                    <li>
+                      <strong>Mismo servidor Coolify:</strong> dejá vacío →{' '}
+                      <code>http://piper-tts:10200</code> (red interna)
+                    </li>
+                    <li>
+                      <strong>Tablet/navegador directo:</strong> URL pública del proxy Piper (no
+                      IP:puerto externo)
+                    </li>
+                  </ul>
                   {ttsMode === 'piper' && (
                     <input
                       value={piperUrl}
                       onChange={(e) => setPiperUrl(e.target.value)}
-                      placeholder="http://192.168.2.252:5000"
+                      placeholder="Vacío = backend Coolify · o URL pública del proxy"
                       className="w-full rounded-lg border px-3 py-2 text-sm"
                     />
                   )}

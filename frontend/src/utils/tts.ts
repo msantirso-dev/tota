@@ -78,13 +78,13 @@ async function tryPiperDirect(piperUrl: string, text: string, language: string):
 
 async function tryPiperViaBackend(
   text: string,
-  piperUrl: string,
+  piperUrl: string | undefined,
   language: string,
 ): Promise<boolean> {
   const result = await api.synthesizeTts(text, {
     provider: 'piper',
-    piper_url: piperUrl,
     language,
+    ...(piperUrl?.trim() ? { piper_url: piperUrl.trim() } : {}),
   })
 
   if (result.audio_base64) {
@@ -104,16 +104,20 @@ export async function speakWithProfile(text: string, profile: Profile | null | u
   const prefs = getTtsPreferences(profile)
   const language = profile?.language ?? 'es-AR'
 
-  if (prefs.tts_mode === 'piper' && prefs.piper_url.trim()) {
+  if (prefs.tts_mode === 'piper') {
     const piperUrl = prefs.piper_url.trim()
-    try {
-      const direct = await tryPiperDirect(piperUrl, text, language)
-      if (direct) return
-    } catch {
-      // fallback abajo
+
+    if (piperUrl) {
+      try {
+        const direct = await tryPiperDirect(piperUrl, text, language)
+        if (direct) return
+      } catch {
+        // fallback abajo
+      }
     }
+
     try {
-      const viaBackend = await tryPiperViaBackend(text, piperUrl, language)
+      const viaBackend = await tryPiperViaBackend(text, piperUrl || undefined, language)
       if (viaBackend) return
     } catch {
       // fallback abajo
@@ -131,19 +135,21 @@ export async function testPiperVoice(
   unlockSpeech()
   const language = profile?.language ?? 'es-AR'
   const url = piperUrl.trim()
-  if (!url) throw new Error('Ingresá la URL de Piper')
 
-  const direct = await tryPiperDirect(url, sample, language)
-  if (direct) return { ok: true, source: 'direct' as const }
+  if (url) {
+    const direct = await tryPiperDirect(url, sample, language)
+    if (direct) return { ok: true, source: 'direct' as const }
 
-  const result = await api.testPiper(url, sample)
-  if (result.audio_base64) {
-    await playBase64(result.audio_base64, result.audio_content_type ?? 'audio/wav')
-    return { ok: true, source: 'backend' as const }
+    const result = await api.testPiper(url, sample)
+    if (result.audio_base64) {
+      await playBase64(result.audio_base64, result.audio_content_type ?? 'audio/wav')
+      return { ok: true, source: 'backend' as const }
+    }
+  } else {
+    const viaBackend = await tryPiperViaBackend(sample, undefined, language)
+    if (viaBackend) return { ok: true, source: 'backend' as const }
   }
-  if (result.use_browser) {
-    speakText(sample, voiceOptions(profile))
-    return { ok: true, source: 'browser_fallback' as const }
-  }
-  throw new Error('No se pudo conectar con Piper')
+
+  speakText(sample, voiceOptions(profile))
+  return { ok: true, source: 'browser_fallback' as const }
 }

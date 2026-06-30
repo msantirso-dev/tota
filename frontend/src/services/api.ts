@@ -238,6 +238,10 @@ class ApiClient {
     return `${API_BASE}/${url.replace(/^\//, '')}`
   }
 
+  getTtsConfig() {
+    return this.request<{ default_provider: string; piper_url: string | null }>('/tts/config')
+  }
+
   synthesizeTts(
     text: string,
     options: { provider?: string; piper_url?: string; language?: string } = {},
