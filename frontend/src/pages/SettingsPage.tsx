@@ -182,6 +182,14 @@ export function SettingsPage() {
                       )}
                     </p>
                   )}
+                  {serverTts.wyomingHost === 'piper' && (
+                    <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      El backend usa el hostname <code>piper</code>, que suele fallar en Coolify.
+                      Cambiá en el servicio backend:{' '}
+                      <code>PIPER_WYOMING_HOST=piper-tts</code> y{' '}
+                      <code>PIPER_BASE_URL=http://piper-tts:5000</code>, luego redeploy.
+                    </p>
+                  )}
                   <ul className="mb-3 list-inside list-disc space-y-1 text-xs text-slate-500">
                     <li>
                       <strong>Mismo servidor Coolify:</strong> URL vacía (recomendado)

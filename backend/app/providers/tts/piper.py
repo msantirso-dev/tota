@@ -12,6 +12,9 @@ from app.providers.tts.base import TTSProvider, TTSResult
 
 logger = logging.getLogger(__name__)
 
+# Nombres habituales del contenedor Piper en Coolify / Docker Compose
+PIPER_HOST_FALLBACKS = ("piper-tts", "piper")
+
 
 def _audio_result(text: str, content: bytes, content_type: str, provider: str) -> TTSResult:
     encoded = base64.b64encode(content).decode("ascii")
@@ -64,8 +67,22 @@ class PiperProvider(TTSProvider):
             self.wyoming_host = host
             self.wyoming_port = 10200
             self.http_url = f"http://{host}:5000"
-        elif self.wyoming_host in ("piper-tts", "piper") and host not in (self.wyoming_host,):
-            self.wyoming_host = host
+
+    def _http_url_for_host(self, host: str) -> str:
+        parsed = urlparse(self.http_url if "://" in self.http_url else f"http://{self.http_url}")
+        port = parsed.port or 5000
+        return f"http://{host}:{port}"
+
+    def _host_candidates(self) -> list[str]:
+        hosts: list[str] = []
+        parsed = urlparse(self.http_url if "://" in self.http_url else f"http://{self.http_url}")
+        for candidate in (self.wyoming_host, parsed.hostname):
+            if candidate and candidate not in hosts:
+                hosts.append(candidate)
+        for fallback in PIPER_HOST_FALLBACKS:
+            if fallback not in hosts:
+                hosts.append(fallback)
+        return hosts
 
     @classmethod
     def from_url(cls, url: str) -> "PiperProvider":
@@ -78,23 +95,26 @@ class PiperProvider(TTSProvider):
     async def synthesize(self, text: str, language: str = "es-AR") -> TTSResult:
         errors: list[str] = []
 
-        if self.wyoming_host:
-            result, err = await self._try_wyoming(
-                self.wyoming_host, self.wyoming_port, text, language
-            )
+        for host in self._host_candidates():
+            result, err = await self._try_wyoming(host, self.wyoming_port, text, language)
             if result:
                 return result
             if err:
-                errors.append(f"Wyoming {self.wyoming_host}:{self.wyoming_port}: {err}")
+                errors.append(f"Wyoming {host}:{self.wyoming_port}: {err}")
 
-        if self.http_url:
-            result, err = await self._try_http(self.http_url, text, language)
+            http_url = self._http_url_for_host(host)
+            result, err = await self._try_http(http_url, text, language)
             if result:
                 return result
             if err:
-                errors.append(f"HTTP {self.http_url}: {err}")
+                errors.append(f"HTTP {http_url}: {err}")
 
         detail = " | ".join(errors) if errors else "sin conexión a Piper"
+        if "name resolution" in detail.lower() or "errno -3" in detail.lower():
+            detail += (
+                ". El hostname 'piper' no existe en Docker; usá PIPER_WYOMING_HOST=piper-tts "
+                "en Coolify y conectá ambos servicios a la misma red."
+            )
         logger.warning("Piper no disponible: %s", detail)
 
         return TTSResult(
