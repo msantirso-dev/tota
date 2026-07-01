@@ -248,6 +248,20 @@ class ApiClient {
     }>('/tts/config')
   }
 
+  getTtsDiagnostics() {
+    return this.request<{
+      hosts: Array<{
+        host: string
+        dns: boolean
+        wyoming: boolean
+        http: boolean
+        error: string | null
+      }>
+      reachable: boolean
+      hint: string | null
+    }>('/tts/diagnostics')
+  }
+
   synthesizeTts(
     text: string,
     options: { provider?: string; piper_url?: string; language?: string } = {},

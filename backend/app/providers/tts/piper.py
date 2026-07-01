@@ -16,6 +16,58 @@ logger = logging.getLogger(__name__)
 PIPER_HOST_FALLBACKS = ("piper-tts", "piper")
 
 
+def format_piper_error(detail: str) -> str:
+    lower = detail.lower()
+    if "name resolution" in lower or "errno -3" in lower:
+        return (
+            "El backend TOTA no encuentra el servidor Piper en la red Docker. "
+            "En Coolify: (1) abrí el servicio Piper → Networks y copiá el nombre de red; "
+            "(2) en el backend TOTA → Networks → conectá esa misma red; "
+            "(3) usá PIPER_WYOMING_HOST con el nombre interno del contenedor Piper "
+            "(ej. piper-tts); (4) redeploy."
+        )
+    return detail
+
+
+async def diagnose_piper_hosts(
+    hosts: list[str] | None = None,
+    wyoming_port: int = 10200,
+    http_port: int = 5000,
+) -> list[dict]:
+    import socket
+
+    provider = PiperProvider()
+    targets = hosts or provider._host_candidates()
+    results: list[dict] = []
+
+    for host in targets:
+        entry: dict = {"host": host, "dns": False, "wyoming": False, "http": False, "error": None}
+        try:
+            socket.getaddrinfo(host, wyoming_port, type=socket.SOCK_STREAM)
+            entry["dns"] = True
+        except OSError as exc:
+            entry["error"] = str(exc)
+            results.append(entry)
+            continue
+
+        for port, key in ((wyoming_port, "wyoming"), (http_port, "http")):
+            try:
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(host, port),
+                    timeout=3.0,
+                )
+                del reader
+                writer.close()
+                await writer.wait_closed()
+                entry[key] = True
+            except Exception:
+                pass
+
+        results.append(entry)
+
+    return results
+
+
 def _audio_result(text: str, content: bytes, content_type: str, provider: str) -> TTSResult:
     encoded = base64.b64encode(content).decode("ascii")
     return TTSResult(
@@ -110,18 +162,13 @@ class PiperProvider(TTSProvider):
                 errors.append(f"HTTP {http_url}: {err}")
 
         detail = " | ".join(errors) if errors else "sin conexión a Piper"
-        if "name resolution" in detail.lower() or "errno -3" in detail.lower():
-            detail += (
-                ". El hostname 'piper' no existe en Docker; usá PIPER_WYOMING_HOST=piper-tts "
-                "en Coolify y conectá ambos servicios a la misma red."
-            )
         logger.warning("Piper no disponible: %s", detail)
 
         return TTSResult(
             text=text,
             provider="browser_fallback",
             use_browser=True,
-            error_detail=detail,
+            error_detail=format_piper_error(detail),
         )
 
     async def _try_http(

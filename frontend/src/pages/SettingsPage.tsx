@@ -12,6 +12,14 @@ type TtsServerInfo = {
   wyomingPort: number | null
 }
 
+type PiperHostDiag = {
+  host: string
+  dns: boolean
+  wyoming: boolean
+  http: boolean
+  error: string | null
+}
+
 export function SettingsPage() {
   const { user, profile, setHighContrast, highContrast, refreshProfile } = useAuth()
   const [settings, setSettings] = useState<Array<{ key: string; value: Record<string, unknown> }>>([])
@@ -25,6 +33,11 @@ export function SettingsPage() {
     wyomingHost: null,
     wyomingPort: null,
   })
+  const [piperDiag, setPiperDiag] = useState<{
+    hosts: PiperHostDiag[]
+    reachable: boolean
+    hint: string | null
+  } | null>(null)
 
   useEffect(() => {
     api.getSettings().then(setSettings).catch(() => {})
@@ -39,6 +52,17 @@ export function SettingsPage() {
       )
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (ttsMode !== 'piper') {
+      setPiperDiag(null)
+      return
+    }
+    api
+      .getTtsDiagnostics()
+      .then(setPiperDiag)
+      .catch(() => setPiperDiag(null))
+  }, [ttsMode])
 
   useEffect(() => {
     const prefs = getTtsPreferences(profile)
@@ -182,13 +206,28 @@ export function SettingsPage() {
                       )}
                     </p>
                   )}
-                  {serverTts.wyomingHost === 'piper' && (
-                    <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                      El backend usa el hostname <code>piper</code>, que suele fallar en Coolify.
-                      Cambiá en el servicio backend:{' '}
-                      <code>PIPER_WYOMING_HOST=piper-tts</code> y{' '}
-                      <code>PIPER_BASE_URL=http://piper-tts:5000</code>, luego redeploy.
-                    </p>
+                  {piperDiag && !piperDiag.reachable && (
+                    <div className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                      <p className="font-semibold">Red Docker: Piper no alcanzable</p>
+                      {piperDiag.hint && <p className="mt-1">{piperDiag.hint}</p>}
+                      <ul className="mt-2 space-y-1">
+                        {piperDiag.hosts.map((h) => (
+                          <li key={h.host}>
+                            <code>{h.host}</code> — DNS {h.dns ? '✓' : '✗'}
+                            {h.dns && (
+                              <>
+                                {' '}
+                                · Wyoming {h.wyoming ? '✓' : '✗'} · HTTP {h.http ? '✓' : '✗'}
+                              </>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-2">
+                        En Coolify: servicio Piper → <strong>Networks</strong> → copiá la red. Luego
+                        backend TOTA → <strong>Networks</strong> → conectá la misma red → redeploy.
+                      </p>
+                    </div>
                   )}
                   <ul className="mb-3 list-inside list-disc space-y-1 text-xs text-slate-500">
                     <li>

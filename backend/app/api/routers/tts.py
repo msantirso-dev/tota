@@ -5,7 +5,7 @@ from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.models import User
 from app.providers.tts.factory import get_tts_provider
-from app.providers.tts.piper import PiperProvider
+from app.providers.tts.piper import PiperProvider, diagnose_piper_hosts
 from app.schemas import TTSRequest, TTSResponse
 
 router = APIRouter(prefix="/tts", tags=["tts"])
@@ -28,6 +28,40 @@ def _make_piper_provider(piper_url: str | None = None) -> PiperProvider:
     if piper_url and piper_url.strip():
         return PiperProvider.from_url(piper_url.strip())
     return PiperProvider()
+
+
+class PiperDiagnosticsResponse(BaseModel):
+    hosts: list[dict]
+    reachable: bool
+    hint: str | None = None
+
+
+@router.get("/diagnostics", response_model=PiperDiagnosticsResponse)
+async def tts_diagnostics(_: User = Depends(get_current_user)):
+    provider = PiperProvider()
+    parsed_port = 5000
+    if provider.http_url:
+        from urllib.parse import urlparse
+
+        p = urlparse(provider.http_url)
+        if p.port:
+            parsed_port = p.port
+    hosts = await diagnose_piper_hosts(
+        provider._host_candidates(),
+        wyoming_port=provider.wyoming_port,
+        http_port=parsed_port,
+    )
+    reachable = any(h.get("wyoming") or h.get("http") for h in hosts)
+    hint = None
+    if not reachable:
+        if not any(h.get("dns") for h in hosts):
+            hint = (
+                "Ningún hostname Piper resuelve desde el backend. "
+                "Conectá TOTA y Piper a la misma red Docker en Coolify."
+            )
+        else:
+            hint = "DNS OK pero los puertos 10200/5000 no responden. Verificá que Piper esté corriendo."
+    return PiperDiagnosticsResponse(hosts=hosts, reachable=reachable, hint=hint)
 
 
 @router.get("/config", response_model=TTSStatusResponse)
