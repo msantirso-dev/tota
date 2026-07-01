@@ -1,5 +1,5 @@
-import type { ComponentType } from 'react'
 import { NavLink } from 'react-router-dom'
+import type { LucideIcon } from 'lucide-react'
 import {
   AlertTriangle,
   Bot,
@@ -20,7 +20,7 @@ const YOUTUBE_URL = 'https://www.youtube.com'
 type NavItem = {
   to: string
   label: string
-  icon: ComponentType<{ size?: number; className?: string }>
+  icon: LucideIcon | typeof YoutubeIcon
   emergency?: boolean
   external?: boolean
   youtube?: boolean
