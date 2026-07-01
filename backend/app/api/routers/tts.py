@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.api.deps import get_current_user
@@ -13,20 +13,33 @@ router = APIRouter(prefix="/tts", tags=["tts"])
 
 class TTSStatusResponse(BaseModel):
     default_provider: str
-    piper_url: str | None = None
+    piper_http_url: str | None = None
+    piper_wyoming_host: str | None = None
+    piper_wyoming_port: int | None = None
+    piper_url: str | None = None  # legacy
 
 
 class PiperTestRequest(BaseModel):
-    piper_url: str = Field(min_length=4, max_length=512)
+    piper_url: str | None = Field(default=None, max_length=512)
     text: str = "Hola, probando Piper"
+
+
+def _make_piper_provider(piper_url: str | None = None) -> PiperProvider:
+    if piper_url and piper_url.strip():
+        return PiperProvider.from_url(piper_url.strip())
+    return PiperProvider()
 
 
 @router.get("/config", response_model=TTSStatusResponse)
 def tts_config(_: User = Depends(get_current_user)):
     settings = get_settings()
+    provider = PiperProvider()
     return TTSStatusResponse(
         default_provider=settings.tts_provider,
-        piper_url=settings.piper_base_url,
+        piper_http_url=provider.http_url,
+        piper_wyoming_host=provider.wyoming_host,
+        piper_wyoming_port=provider.wyoming_port,
+        piper_url=provider.http_url,
     )
 
 
@@ -39,9 +52,7 @@ async def synthesize(
         return TTSResponse(text=body.text, provider="browser", use_browser=True)
 
     if body.provider == "piper" or body.piper_url:
-        settings = get_settings()
-        piper_url = (body.piper_url or settings.piper_base_url).strip()
-        provider = PiperProvider(piper_url)
+        provider = _make_piper_provider(body.piper_url)
         result = await provider.synthesize(body.text, body.language)
         return TTSResponse(
             text=result.text,
@@ -69,12 +80,21 @@ async def test_piper(
     body: PiperTestRequest,
     _: User = Depends(get_current_user),
 ):
-    provider = PiperProvider(body.piper_url.strip())
+    provider = _make_piper_provider(body.piper_url)
     result = await provider.synthesize(body.text)
+    if result.use_browser:
+        raise HTTPException(
+            status_code=503,
+            detail=result.error_detail
+            or (
+                "Piper no respondió. Verificá Wyoming en "
+                f"{get_settings().piper_wyoming_host}:{get_settings().piper_wyoming_port}."
+            ),
+        )
     return TTSResponse(
         text=result.text,
         provider=result.provider,
-        use_browser=result.use_browser,
+        use_browser=False,
         audio_base64=result.audio_base64,
         audio_content_type=result.audio_content_type,
     )

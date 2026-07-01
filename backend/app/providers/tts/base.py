@@ -10,6 +10,7 @@ class TTSResult:
     text: str = ""
     provider: str = "mock"
     use_browser: bool = False
+    error_detail: str | None = None
 
 
 class TTSProvider(ABC):

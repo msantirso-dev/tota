@@ -7,7 +7,7 @@ from app.providers.tts.piper import PiperProvider
 def get_tts_provider() -> TTSProvider:
     settings = get_settings()
     if settings.tts_provider == "piper":
-        return PiperProvider(settings.piper_base_url)
+        return PiperProvider()
     providers = {
         "mock": MockTTSProvider,
         "browser": BrowserTTSProvider,

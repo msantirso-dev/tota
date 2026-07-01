@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -12,12 +13,25 @@ import {
   Users,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { YoutubeIcon } from './YoutubeIcon'
 
-const baseLinks = [
+const YOUTUBE_URL = 'https://www.youtube.com'
+
+type NavItem = {
+  to: string
+  label: string
+  icon: ComponentType<{ size?: number; className?: string }>
+  emergency?: boolean
+  external?: boolean
+  youtube?: boolean
+}
+
+const baseLinks: NavItem[] = [
   { to: '/', label: 'Tablero', icon: Grid3X3 },
   { to: '/editor', label: 'Editor', icon: LayoutGrid },
   { to: '/entorno', label: 'Entorno', icon: Home },
   { to: '/historial', label: 'Historial', icon: Clock },
+  { to: YOUTUBE_URL, label: 'YouTube', icon: YoutubeIcon, external: true, youtube: true },
   { to: '/asistente', label: 'Asistente', icon: Bot },
   { to: '/perfil', label: 'Perfil', icon: User },
   { to: '/configuracion', label: 'Config', icon: Settings },
@@ -27,7 +41,7 @@ const baseLinks = [
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { logout, profile, user } = useAuth()
 
-  const links =
+  const links: NavItem[] =
     user?.role === 'admin' || user?.role === 'terapeuta'
       ? [
           ...baseLinks.slice(0, 2),
@@ -36,14 +50,91 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         ]
       : baseLinks
 
-  const navLinkClass = (isActive: boolean, emergency?: boolean) => {
+  const navLinkClass = (isActive: boolean, emergency?: boolean, youtube?: boolean) => {
     if (emergency) {
       return 'bg-red-600 text-white hover:bg-red-700'
+    }
+    if (youtube) {
+      return 'text-red-600 hover:bg-red-50 high-contrast:text-red-400 high-contrast:hover:bg-zinc-800'
     }
     if (isActive) {
       return 'bg-indigo-100 text-indigo-700 high-contrast:bg-yellow-300 high-contrast:text-black'
     }
     return 'hover:bg-slate-100 high-contrast:hover:bg-zinc-800'
+  }
+
+  const renderDesktopLink = ({ to, label, icon: Icon, emergency, external, youtube }: NavItem) => {
+    const className = `flex min-h-[2.75rem] items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium lg:text-base ${navLinkClass(false, emergency, youtube)}`
+
+    if (external) {
+      return (
+        <a
+          key={to}
+          href={to}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={className}
+          aria-label={`Abrir ${label} en una pestaña nueva`}
+        >
+          <Icon size={20} className="shrink-0" />
+          {label}
+        </a>
+      )
+    }
+
+    return (
+      <NavLink
+        key={to}
+        to={to}
+        className={({ isActive }) =>
+          `flex min-h-[2.75rem] items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium lg:text-base ${navLinkClass(isActive, emergency, youtube)}`
+        }
+      >
+        <Icon size={20} className="shrink-0" />
+        {label}
+      </NavLink>
+    )
+  }
+
+  const renderMobileLink = ({ to, label, icon: Icon, emergency, external, youtube }: NavItem) => {
+    const inactiveClass = youtube
+      ? 'text-red-600 high-contrast:text-red-400'
+      : 'opacity-75'
+
+    if (external) {
+      return (
+        <a
+          key={to}
+          href={to}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`flex min-w-[4.25rem] shrink-0 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-[0.65rem] font-medium xs:min-w-[4.75rem] xs:text-xs ${inactiveClass}`}
+          aria-label={`Abrir ${label} en una pestaña nueva`}
+        >
+          <Icon size={22} className="mb-0.5" />
+          <span className="max-w-[4.5rem] truncate text-center leading-tight">{label}</span>
+        </a>
+      )
+    }
+
+    return (
+      <NavLink
+        key={to}
+        to={to}
+        className={({ isActive }) =>
+          `flex min-w-[4.25rem] shrink-0 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-[0.65rem] font-medium xs:min-w-[4.75rem] xs:text-xs ${
+            emergency
+              ? 'bg-red-600 text-white'
+              : isActive
+                ? 'text-indigo-600 high-contrast:text-yellow-300'
+                : inactiveClass
+          }`
+        }
+      >
+        <Icon size={22} className="mb-0.5" />
+        <span className="max-w-[4.5rem] truncate text-center leading-tight">{label}</span>
+      </NavLink>
+    )
   }
 
   return (
@@ -57,18 +148,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <p className="text-xs opacity-70 md:text-sm">{profile?.display_name}</p>
           </div>
           <nav className="hidden gap-1 md:flex md:flex-col">
-            {links.map(({ to, label, icon: Icon, emergency }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `flex min-h-[2.75rem] items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium lg:text-base ${navLinkClass(isActive, emergency)}`
-                }
-              >
-                <Icon size={20} className="shrink-0" />
-                {label}
-              </NavLink>
-            ))}
+            {links.map(renderDesktopLink)}
             <button
               onClick={logout}
               className="mt-2 flex min-h-[2.75rem] items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm hover:bg-slate-100 lg:text-base"
@@ -82,27 +162,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       <main className="has-bottom-nav md:pb-0 flex-1 overflow-auto">{children}</main>
 
-      {/* Navegación inferior: teléfonos y tablets en portrait (< md) */}
       <nav className="bottom-nav surface fixed bottom-0 left-0 right-0 z-20 border-t md:hidden">
         <div className="bottom-nav-scroll flex gap-1 overflow-x-auto px-1 pt-2">
-          {links.map(({ to, label, icon: Icon, emergency }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex min-w-[4.25rem] shrink-0 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-[0.65rem] font-medium xs:min-w-[4.75rem] xs:text-xs ${
-                  emergency
-                    ? 'bg-red-600 text-white'
-                    : isActive
-                      ? 'text-indigo-600 high-contrast:text-yellow-300'
-                      : 'opacity-75'
-                }`
-              }
-            >
-              <Icon size={22} className="mb-0.5" />
-              <span className="max-w-[4.5rem] truncate text-center leading-tight">{label}</span>
-            </NavLink>
-          ))}
+          {links.map(renderMobileLink)}
         </div>
       </nav>
     </div>

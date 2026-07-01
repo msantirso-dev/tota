@@ -6,6 +6,12 @@ import type { TtsMode } from '../types'
 import { getTtsPreferences, testPiperVoice } from '../utils/tts'
 import { speakText, unlockSpeech } from '../utils/phrase'
 
+type TtsServerInfo = {
+  httpUrl: string | null
+  wyomingHost: string | null
+  wyomingPort: number | null
+}
+
 export function SettingsPage() {
   const { user, profile, setHighContrast, highContrast, refreshProfile } = useAuth()
   const [settings, setSettings] = useState<Array<{ key: string; value: Record<string, unknown> }>>([])
@@ -14,11 +20,24 @@ export function SettingsPage() {
   const [ttsMessage, setTtsMessage] = useState('')
   const [ttsTesting, setTtsTesting] = useState(false)
   const [ttsSaving, setTtsSaving] = useState(false)
-  const [serverPiperUrl, setServerPiperUrl] = useState<string | null>(null)
+  const [serverTts, setServerTts] = useState<TtsServerInfo>({
+    httpUrl: null,
+    wyomingHost: null,
+    wyomingPort: null,
+  })
 
   useEffect(() => {
     api.getSettings().then(setSettings).catch(() => {})
-    api.getTtsConfig().then((c) => setServerPiperUrl(c.piper_url)).catch(() => {})
+    api
+      .getTtsConfig()
+      .then((c) =>
+        setServerTts({
+          httpUrl: c.piper_http_url ?? c.piper_url,
+          wyomingHost: c.piper_wyoming_host,
+          wyomingPort: c.piper_wyoming_port,
+        }),
+      )
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -38,14 +57,25 @@ export function SettingsPage() {
     setTtsSaving(true)
     setTtsMessage('')
     try {
+      const trimmed = piperUrl.trim()
+      const isInternal =
+        trimmed.includes('piper-tts') || trimmed.includes('piper:') || trimmed.includes(':10200')
+
       await api.updateProfile({
         preferences: {
           tts_mode: ttsMode,
-          piper_url: piperUrl.trim(),
+          piper_url: isInternal ? '' : trimmed,
         },
       })
       await refreshProfile()
-      setTtsMessage('Configuración de voz guardada')
+      if (isInternal && trimmed) {
+        setPiperUrl('')
+        setTtsMessage(
+          'Guardado. Se quitó la URL interna (piper-tts) — el backend la resuelve solo en Coolify.',
+        )
+      } else {
+        setTtsMessage('Configuración de voz guardada')
+      }
     } catch (err) {
       setTtsMessage(err instanceof Error ? err.message : 'Error al guardar')
     } finally {
@@ -67,12 +97,14 @@ export function SettingsPage() {
         setTtsMessage('Reproduciendo voz del navegador')
       } else {
         const result = await testPiperVoice(piperUrl, profile)
+        if (!result.ok) {
+          setTtsMessage(`Error: ${result.error}`)
+          return
+        }
         const sourceLabel =
           result.source === 'direct'
             ? 'Piper (conexión directa desde el dispositivo)'
-            : result.source === 'backend'
-              ? 'Piper (vía servidor TOTA)'
-              : 'Navegador (Piper no respondió)'
+            : `Piper (vía servidor TOTA · ${result.provider})`
         setTtsMessage(`Prueba OK: ${sourceLabel}`)
       }
     } catch (err) {
@@ -129,22 +161,34 @@ export function SettingsPage() {
                 <div className="w-full">
                   <p className="font-medium">Piper (servidor TTS)</p>
                   <p className="mb-2 text-sm text-slate-500">
-                    TOTA en Coolify usa la red Docker interna. Dejá la URL vacía para usar el
-                    servidor configurado en el backend.
+                    En Coolify dejá la URL <strong>vacía</strong>: el backend TOTA habla con Piper
+                    por la red Docker interna. No uses <code>piper-tts</code> en el navegador — ese
+                    hostname solo existe dentro del servidor.
                   </p>
-                  {serverPiperUrl && (
+                  {(serverTts.httpUrl || serverTts.wyomingHost) && (
                     <p className="mb-2 rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-600">
-                      Servidor backend: <code>{serverPiperUrl}</code>
+                      Backend configurado:
+                      {serverTts.httpUrl && (
+                        <>
+                          {' '}
+                          HTTP <code>{serverTts.httpUrl}</code>
+                        </>
+                      )}
+                      {serverTts.wyomingHost && (
+                        <>
+                          {' '}
+                          · Wyoming <code>{serverTts.wyomingHost}:{serverTts.wyomingPort ?? 10200}</code>
+                        </>
+                      )}
                     </p>
                   )}
                   <ul className="mb-3 list-inside list-disc space-y-1 text-xs text-slate-500">
                     <li>
-                      <strong>Mismo servidor Coolify:</strong> dejá vacío →{' '}
-                      <code>http://piper-tts:10200</code> (red interna)
+                      <strong>Mismo servidor Coolify:</strong> URL vacía (recomendado)
                     </li>
                     <li>
-                      <strong>Tablet/navegador directo:</strong> URL pública del proxy Piper (no
-                      IP:puerto externo)
+                      <strong>Tablet con proxy público:</strong> URL HTTPS del proxy Piper (no
+                      IP:puerto ni nombres Docker)
                     </li>
                   </ul>
                   {ttsMode === 'piper' && (
@@ -180,7 +224,9 @@ export function SettingsPage() {
 
             {ttsMessage && (
               <p
-                className={`mt-3 text-sm ${ttsMessage.includes('Error') ? 'text-red-600' : 'text-green-600'}`}
+                className={`mt-3 text-sm ${
+                  ttsMessage.startsWith('Error') ? 'text-red-600' : 'text-green-600'
+                }`}
               >
                 {ttsMessage}
               </p>

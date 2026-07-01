@@ -239,7 +239,13 @@ class ApiClient {
   }
 
   getTtsConfig() {
-    return this.request<{ default_provider: string; piper_url: string | null }>('/tts/config')
+    return this.request<{
+      default_provider: string
+      piper_url: string | null
+      piper_http_url: string | null
+      piper_wyoming_host: string | null
+      piper_wyoming_port: number | null
+    }>('/tts/config')
   }
 
   synthesizeTts(
@@ -263,7 +269,7 @@ class ApiClient {
     })
   }
 
-  testPiper(piperUrl: string, text = 'Hola, probando Piper') {
+  testPiper(piperUrl: string | undefined, text = 'Hola, probando Piper') {
     return this.request<{
       provider: string
       use_browser: boolean
@@ -271,7 +277,10 @@ class ApiClient {
       audio_content_type?: string
     }>('/tts/test-piper', {
       method: 'POST',
-      body: JSON.stringify({ piper_url: piperUrl, text }),
+      body: JSON.stringify({
+        piper_url: piperUrl?.trim() || null,
+        text,
+      }),
     })
   }
 }
