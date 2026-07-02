@@ -9,6 +9,8 @@ export function getTtsPreferences(profile: Profile | null | undefined): Required
   return {
     tts_mode: prefs.tts_mode === 'piper' ? 'piper' : 'browser',
     piper_url: typeof prefs.piper_url === 'string' ? prefs.piper_url : '',
+    piper_host: typeof prefs.piper_host === 'string' ? prefs.piper_host : '',
+    piper_voice: typeof prefs.piper_voice === 'string' ? prefs.piper_voice : '',
   }
 }
 
@@ -24,7 +26,7 @@ function isPublicPiperUrl(url: string): boolean {
 }
 
 /** URL para el backend: hostnames Docker internos se ignoran (usa env del servidor). */
-function piperUrlForBackend(piperUrl: string): string | undefined {
+export function piperUrlForBackend(piperUrl: string): string | undefined {
   const trimmed = piperUrl.trim()
   if (!trimmed || !isPublicPiperUrl(trimmed)) return undefined
   return trimmed
@@ -100,11 +102,15 @@ async function tryPiperViaBackend(
   text: string,
   piperUrl: string | undefined,
   language: string,
+  piperVoice?: string,
+  piperHost?: string,
 ): Promise<boolean> {
   const result = await api.synthesizeTts(text, {
     provider: 'piper',
     language,
     ...(piperUrl ? { piper_url: piperUrl } : {}),
+    ...(piperHost ? { piper_host: piperHost } : {}),
+    ...(piperVoice ? { piper_voice: piperVoice } : {}),
   })
 
   if (result.use_browser || !result.audio_base64) return false
@@ -135,7 +141,13 @@ export async function speakWithProfile(text: string, profile: Profile | null | u
     }
 
     try {
-      const viaBackend = await tryPiperViaBackend(text, backendUrl, language)
+      const viaBackend = await tryPiperViaBackend(
+        text,
+        backendUrl,
+        language,
+        prefs.piper_voice,
+        prefs.piper_host || undefined,
+      )
       if (viaBackend) return
     } catch {
       // fallback abajo
@@ -153,11 +165,16 @@ export async function testPiperVoice(
   piperUrl: string,
   profile: Profile | null | undefined,
   sample = 'Hola, probando la voz de Piper',
+  piperVoice?: string,
+  piperHost?: string,
 ): Promise<PiperTestResult> {
   unlockSpeech()
   const language = profile?.language ?? 'es-AR'
+  const prefs = getTtsPreferences(profile)
   const rawUrl = piperUrl.trim()
   const backendUrl = piperUrlForBackend(rawUrl)
+  const voice = piperVoice ?? prefs.piper_voice
+  const host = piperHost ?? prefs.piper_host
 
   if (isPublicPiperUrl(rawUrl)) {
     const direct = await tryPiperDirect(rawUrl, sample, language)
@@ -165,7 +182,7 @@ export async function testPiperVoice(
   }
 
   try {
-    const result = await api.testPiper(backendUrl, sample)
+    const result = await api.testPiper(backendUrl, sample, voice || undefined, host || undefined)
     if (result.audio_base64) {
       await playBase64(result.audio_base64, result.audio_content_type ?? 'audio/wav')
       return { ok: true, source: 'backend', provider: result.provider }

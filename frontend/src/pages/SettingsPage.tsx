@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { AppLayout } from '../components/AppLayout'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
-import type { TtsMode } from '../types'
-import { getTtsPreferences, testPiperVoice } from '../utils/tts'
+import type { PiperVoiceOption, TtsMode } from '../types'
+import { getTtsPreferences, piperUrlForBackend, testPiperVoice } from '../utils/tts'
 import { speakText, unlockSpeech } from '../utils/phrase'
 
 type TtsServerInfo = {
@@ -25,6 +25,10 @@ export function SettingsPage() {
   const [settings, setSettings] = useState<Array<{ key: string; value: Record<string, unknown> }>>([])
   const [ttsMode, setTtsMode] = useState<TtsMode>('browser')
   const [piperUrl, setPiperUrl] = useState('')
+  const [piperHost, setPiperHost] = useState('')
+  const [piperVoice, setPiperVoice] = useState('')
+  const [piperVoices, setPiperVoices] = useState<PiperVoiceOption[]>([])
+  const [piperVoicesLoading, setPiperVoicesLoading] = useState(false)
   const [ttsMessage, setTtsMessage] = useState('')
   const [ttsTesting, setTtsTesting] = useState(false)
   const [ttsSaving, setTtsSaving] = useState(false)
@@ -56,18 +60,28 @@ export function SettingsPage() {
   useEffect(() => {
     if (ttsMode !== 'piper') {
       setPiperDiag(null)
+      setPiperVoices([])
       return
     }
     api
-      .getTtsDiagnostics()
+      .getTtsDiagnostics(piperHost || undefined)
       .then(setPiperDiag)
       .catch(() => setPiperDiag(null))
-  }, [ttsMode])
+
+    setPiperVoicesLoading(true)
+    api
+      .getPiperVoices(piperUrlForBackend(piperUrl), piperHost || undefined)
+      .then((res) => setPiperVoices(res.voices))
+      .catch(() => setPiperVoices([]))
+      .finally(() => setPiperVoicesLoading(false))
+  }, [ttsMode, piperUrl, piperHost])
 
   useEffect(() => {
     const prefs = getTtsPreferences(profile)
     setTtsMode(prefs.tts_mode)
     setPiperUrl(prefs.piper_url)
+    setPiperHost(prefs.piper_host)
+    setPiperVoice(prefs.piper_voice)
   }, [profile])
 
   const toggleContrast = async () => {
@@ -89,6 +103,8 @@ export function SettingsPage() {
         preferences: {
           tts_mode: ttsMode,
           piper_url: isInternal ? '' : trimmed,
+          piper_host: ttsMode === 'piper' ? piperHost.trim() : '',
+          piper_voice: ttsMode === 'piper' ? piperVoice : '',
         },
       })
       await refreshProfile()
@@ -120,7 +136,7 @@ export function SettingsPage() {
         })
         setTtsMessage('Reproduciendo voz del navegador')
       } else {
-        const result = await testPiperVoice(piperUrl, profile)
+        const result = await testPiperVoice(piperUrl, profile, undefined, piperVoice, piperHost)
         if (!result.ok) {
           setTtsMessage(`Error: ${result.error}`)
           return
@@ -224,8 +240,9 @@ export function SettingsPage() {
                         ))}
                       </ul>
                       <p className="mt-2">
-                        En Coolify: servicio Piper → <strong>Networks</strong> → copiá la red. Luego
-                        backend TOTA → <strong>Networks</strong> → conectá la misma red → redeploy.
+                        Aunque estén en la misma red Coolify, el nombre interno puede no ser{' '}
+                        <code>piper-tts</code>. En Piper → <strong>Terminal</strong> ejecutá{' '}
+                        <code>hostname</code> y poné ese valor abajo en Hostname Piper.
                       </p>
                     </div>
                   )}
@@ -239,12 +256,71 @@ export function SettingsPage() {
                     </li>
                   </ul>
                   {ttsMode === 'piper' && (
-                    <input
-                      value={piperUrl}
-                      onChange={(e) => setPiperUrl(e.target.value)}
-                      placeholder="Vacío = backend Coolify · o URL pública del proxy"
-                      className="w-full rounded-lg border px-3 py-2 text-sm"
-                    />
+                    <div className="space-y-3">
+                      <div>
+                        <label
+                          htmlFor="piper-voice"
+                          className="mb-1 block text-sm font-medium text-slate-700"
+                        >
+                          Voz Piper
+                        </label>
+                        <select
+                          id="piper-voice"
+                          value={piperVoice}
+                          onChange={(e) => setPiperVoice(e.target.value)}
+                          disabled={piperVoicesLoading}
+                          className="w-full rounded-lg border bg-white px-3 py-2 text-sm disabled:opacity-50"
+                        >
+                          <option value="">Por defecto del servidor</option>
+                          {piperVoice &&
+                            !piperVoices.some((v) => v.id === piperVoice) && (
+                              <option value={piperVoice}>{piperVoice}</option>
+                            )}
+                          {piperVoices.map((voice) => (
+                            <option key={voice.id} value={voice.id}>
+                              {voice.label}
+                              {voice.languages.length
+                                ? ` (${voice.languages.join(', ')})`
+                                : ''}
+                              {!voice.installed ? ' · no instalada' : ''}
+                            </option>
+                          ))}
+                        </select>
+                        {piperVoicesLoading && (
+                          <p className="mt-1 text-xs text-slate-500">Cargando voces de Piper…</p>
+                        )}
+                        {!piperVoicesLoading && piperVoices.length === 0 && (
+                          <p className="mt-1 text-xs text-slate-500">
+                            No se pudieron cargar voces. Verificá la conexión con Piper arriba.
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <label
+                          htmlFor="piper-host"
+                          className="mb-1 block text-sm font-medium text-slate-700"
+                        >
+                          Hostname Piper (red interna Coolify)
+                        </label>
+                        <input
+                          id="piper-host"
+                          value={piperHost}
+                          onChange={(e) => setPiperHost(e.target.value)}
+                          placeholder="Ej. piper-tts · vacío = env del backend"
+                          className="w-full rounded-lg border px-3 py-2 text-sm"
+                        />
+                        <p className="mt-1 text-xs text-slate-500">
+                          Piper → Terminal → <code>hostname</code>. Solo el nombre, sin http:// ni
+                          puerto.
+                        </p>
+                      </div>
+                      <input
+                        value={piperUrl}
+                        onChange={(e) => setPiperUrl(e.target.value)}
+                        placeholder="Vacío = backend Coolify · o URL pública del proxy"
+                        className="w-full rounded-lg border px-3 py-2 text-sm"
+                      />
+                    </div>
                   )}
                 </div>
               </label>

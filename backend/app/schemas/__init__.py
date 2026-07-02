@@ -364,6 +364,8 @@ class TTSRequest(BaseModel):
     language: str = "es-AR"
     provider: str | None = None
     piper_url: str | None = None
+    piper_host: str | None = None
+    piper_voice: str | None = None
 
 
 class TTSResponse(BaseModel):

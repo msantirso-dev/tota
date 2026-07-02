@@ -138,4 +138,13 @@ export type TtsMode = 'browser' | 'piper'
 export interface TtsPreferences {
   tts_mode?: TtsMode
   piper_url?: string
+  piper_host?: string
+  piper_voice?: string
+}
+
+export interface PiperVoiceOption {
+  id: string
+  label: string
+  languages: string[]
+  installed: boolean
 }

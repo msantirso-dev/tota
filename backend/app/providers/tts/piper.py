@@ -20,11 +20,10 @@ def format_piper_error(detail: str) -> str:
     lower = detail.lower()
     if "name resolution" in lower or "errno -3" in lower:
         return (
-            "El backend TOTA no encuentra el servidor Piper en la red Docker. "
-            "En Coolify: (1) abrí el servicio Piper → Networks y copiá el nombre de red; "
-            "(2) en el backend TOTA → Networks → conectá esa misma red; "
-            "(3) usá PIPER_WYOMING_HOST con el nombre interno del contenedor Piper "
-            "(ej. piper-tts); (4) redeploy."
+            "El backend no resuelve el hostname de Piper. Aunque estén en Coolify, "
+            "cada servicio tiene un nombre interno distinto (no siempre es piper-tts). "
+            "En Piper → Terminal ejecutá hostname y usá ese valor en "
+            "'Hostname Piper' en Config o en PIPER_WYOMING_HOST del backend."
         )
     return detail
 
@@ -93,6 +92,20 @@ def _language_code(language: str) -> str:
     return (language or "es").split("-")[0].lower()
 
 
+def _synthesize_voice(voice_id: str | None, language: str):
+    from wyoming.tts import SynthesizeVoice
+
+    if voice_id and voice_id.strip():
+        return SynthesizeVoice(name=voice_id.strip())
+    return SynthesizeVoice(language=_language_code(language))
+
+
+def _format_voice_label(voice_id: str, description: str | None = None) -> str:
+    if description and description.strip():
+        return description.strip()
+    return voice_id.replace("_", " ").replace("-", " · ")
+
+
 class PiperProvider(TTSProvider):
     """Piper vía protocolo Wyoming (10200) y/o HTTP (5000)."""
 
@@ -144,18 +157,75 @@ class PiperProvider(TTSProvider):
             return cls(http_url=f"http://{host}:5000", wyoming_host=host, wyoming_port=10200)
         return cls(http_url=url, wyoming_host=host, wyoming_port=10200)
 
-    async def synthesize(self, text: str, language: str = "es-AR") -> TTSResult:
+    async def list_voices(self) -> list[dict]:
+        for host in self._host_candidates():
+            voices, err = await self._try_list_wyoming_voices(host, self.wyoming_port)
+            if voices:
+                return voices
+            if err:
+                logger.debug("Piper voices %s:%s: %s", host, self.wyoming_port, err)
+        return []
+
+    async def _try_list_wyoming_voices(
+        self, host: str, port: int
+    ) -> tuple[list[dict], str | None]:
+        try:
+            from wyoming.client import AsyncTcpClient
+            from wyoming.info import Describe, Info
+
+            voices: list[dict] = []
+
+            async def _run() -> None:
+                nonlocal voices
+                async with AsyncTcpClient(host, port) as client:
+                    await client.write_event(Describe().event())
+                    while True:
+                        event = await client.read_event()
+                        if event is None:
+                            break
+                        if Info.is_type(event.type):
+                            info = Info.from_event(event)
+                            for program in info.tts:
+                                for voice in program.voices:
+                                    voices.append(
+                                        {
+                                            "id": voice.name,
+                                            "label": _format_voice_label(
+                                                voice.name, voice.description
+                                            ),
+                                            "languages": voice.languages,
+                                            "installed": voice.installed,
+                                        }
+                                    )
+                            return
+
+            await asyncio.wait_for(_run(), timeout=10.0)
+            if voices:
+                return voices, None
+            return [], "Piper no devolvió voces"
+        except ImportError:
+            return [], "paquete wyoming no instalado"
+        except TimeoutError:
+            return [], "timeout"
+        except Exception as exc:
+            return [], str(exc)
+
+    async def synthesize(
+        self, text: str, language: str = "es-AR", voice_id: str | None = None
+    ) -> TTSResult:
         errors: list[str] = []
 
         for host in self._host_candidates():
-            result, err = await self._try_wyoming(host, self.wyoming_port, text, language)
+            result, err = await self._try_wyoming(
+                host, self.wyoming_port, text, language, voice_id
+            )
             if result:
                 return result
             if err:
                 errors.append(f"Wyoming {host}:{self.wyoming_port}: {err}")
 
             http_url = self._http_url_for_host(host)
-            result, err = await self._try_http(http_url, text, language)
+            result, err = await self._try_http(http_url, text, language, voice_id)
             if result:
                 return result
             if err:
@@ -172,19 +242,35 @@ class PiperProvider(TTSProvider):
         )
 
     async def _try_http(
-        self, base_url: str, text: str, language: str
+        self, base_url: str, text: str, language: str, voice_id: str | None = None
     ) -> tuple[TTSResult | None, str | None]:
+        voice = voice_id.strip() if voice_id else None
+        json_base: dict = {"text": text, "language": language}
+        if voice:
+            json_base["voice"] = voice
+
         attempts: list[tuple[str, dict, str | None]] = [
             (base_url, {"json": {"text": text}}, None),
-            (base_url, {"json": {"text": text, "language": language}}, None),
-            (f"{base_url}/synthesize", {"json": {"text": text, "language": language}}, None),
+            (base_url, {"json": dict(json_base)}, None),
+            (f"{base_url}/synthesize", {"json": dict(json_base)}, None),
             (
                 f"{base_url}/v1/audio/speech",
-                {"json": {"input": text, "model": "piper", "voice": "default"}},
+                {
+                    "json": {
+                        "input": text,
+                        "model": "piper",
+                        "voice": voice or "default",
+                    }
+                },
                 None,
             ),
-            (base_url, {}, f"?text={httpx.QueryParams({'text': text})}"),
         ]
+        if voice:
+            attempts.append(
+                (base_url, {}, f"?text={httpx.QueryParams({'text': text, 'voice': voice})}"),
+            )
+        else:
+            attempts.append((base_url, {}, f"?text={httpx.QueryParams({'text': text})}"))
 
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -221,25 +307,22 @@ class PiperProvider(TTSProvider):
         return None, "sin respuesta HTTP válida"
 
     async def _try_wyoming(
-        self, host: str, port: int, text: str, language: str
+        self, host: str, port: int, text: str, language: str, voice_id: str | None = None
     ) -> tuple[TTSResult | None, str | None]:
         try:
             from wyoming.audio import AudioChunk, AudioStart, AudioStop
             from wyoming.client import AsyncTcpClient
-            from wyoming.tts import Synthesize, SynthesizeVoice
+            from wyoming.tts import Synthesize
 
             audio = bytearray()
             rate, width, channels = 22050, 2, 1
-            lang = _language_code(language)
+            synth_voice = _synthesize_voice(voice_id, language)
 
             async def _run() -> None:
                 nonlocal rate, width, channels
                 async with AsyncTcpClient(host, port) as client:
                     await client.write_event(
-                        Synthesize(
-                            text=text,
-                            voice=SynthesizeVoice(language=lang),
-                        ).event()
+                        Synthesize(text=text, voice=synth_voice).event()
                     )
                     while True:
                         event = await client.read_event()

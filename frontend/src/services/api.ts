@@ -248,7 +248,10 @@ class ApiClient {
     }>('/tts/config')
   }
 
-  getTtsDiagnostics() {
+  getTtsDiagnostics(piperHost?: string) {
+    const params = new URLSearchParams()
+    if (piperHost?.trim()) params.set('piper_host', piperHost.trim())
+    const query = params.toString() ? `?${params}` : ''
     return this.request<{
       hosts: Array<{
         host: string
@@ -259,12 +262,34 @@ class ApiClient {
       }>
       reachable: boolean
       hint: string | null
-    }>('/tts/diagnostics')
+    }>(`/tts/diagnostics${query}`)
+  }
+
+  getPiperVoices(piperUrl?: string, piperHost?: string) {
+    const params = new URLSearchParams()
+    if (piperUrl?.trim()) params.set('piper_url', piperUrl.trim())
+    if (piperHost?.trim()) params.set('piper_host', piperHost.trim())
+    const query = params.toString() ? `?${params}` : ''
+    return this.request<{
+      voices: Array<{
+        id: string
+        label: string
+        languages: string[]
+        installed: boolean
+      }>
+      reachable: boolean
+    }>(`/tts/voices${query}`)
   }
 
   synthesizeTts(
     text: string,
-    options: { provider?: string; piper_url?: string; language?: string } = {},
+    options: {
+      provider?: string
+      piper_url?: string
+      piper_host?: string
+      piper_voice?: string
+      language?: string
+    } = {},
   ) {
     return this.request<{
       text: string
@@ -279,11 +304,18 @@ class ApiClient {
         language: options.language ?? 'es-AR',
         provider: options.provider,
         piper_url: options.piper_url,
+        piper_host: options.piper_host,
+        piper_voice: options.piper_voice,
       }),
     })
   }
 
-  testPiper(piperUrl: string | undefined, text = 'Hola, probando Piper') {
+  testPiper(
+    piperUrl: string | undefined,
+    text = 'Hola, probando Piper',
+    piperVoice?: string,
+    piperHost?: string,
+  ) {
     return this.request<{
       provider: string
       use_browser: boolean
@@ -293,6 +325,8 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({
         piper_url: piperUrl?.trim() || null,
+        piper_host: piperHost?.trim() || null,
+        piper_voice: piperVoice?.trim() || null,
         text,
       }),
     })
