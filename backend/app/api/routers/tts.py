@@ -7,7 +7,7 @@ from app.api.deps import get_current_user
 from app.core.config import get_settings
 from app.models import User
 from app.providers.tts.factory import get_tts_provider
-from app.providers.tts.piper import PiperProvider, diagnose_piper_hosts
+from app.providers.tts.piper import PiperProvider, diagnose_piper_hosts, normalize_piper_host
 from app.schemas import TTSRequest, TTSResponse
 
 router = APIRouter(prefix="/tts", tags=["tts"])
@@ -46,10 +46,8 @@ def _make_piper_provider(
 ) -> PiperProvider:
     if piper_url and piper_url.strip():
         return PiperProvider.from_url(piper_url.strip())
-    host = (piper_host or "").strip()
+    host = normalize_piper_host(piper_host)
     if host:
-        if "://" in host:
-            return PiperProvider.from_url(host)
         return PiperProvider(
             http_url=f"http://{host}:5000",
             wyoming_host=host,

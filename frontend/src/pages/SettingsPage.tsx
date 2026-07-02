@@ -3,6 +3,7 @@ import { AppLayout } from '../components/AppLayout'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../services/api'
 import type { PiperVoiceOption, TtsMode } from '../types'
+import { piperHostInputHint, normalizePiperHost } from '../utils/piperHost'
 import { getTtsPreferences, piperUrlForBackend, testPiperVoice } from '../utils/tts'
 import { speakText, unlockSpeech } from '../utils/phrase'
 
@@ -63,14 +64,15 @@ export function SettingsPage() {
       setPiperVoices([])
       return
     }
+    const host = normalizePiperHost(piperHost) || undefined
     api
-      .getTtsDiagnostics(piperHost || undefined)
+      .getTtsDiagnostics(host)
       .then(setPiperDiag)
       .catch(() => setPiperDiag(null))
 
     setPiperVoicesLoading(true)
     api
-      .getPiperVoices(piperUrlForBackend(piperUrl), piperHost || undefined)
+      .getPiperVoices(piperUrlForBackend(piperUrl), host)
       .then((res) => setPiperVoices(res.voices))
       .catch(() => setPiperVoices([]))
       .finally(() => setPiperVoicesLoading(false))
@@ -80,9 +82,11 @@ export function SettingsPage() {
     const prefs = getTtsPreferences(profile)
     setTtsMode(prefs.tts_mode)
     setPiperUrl(prefs.piper_url)
-    setPiperHost(prefs.piper_host)
+    setPiperHost(normalizePiperHost(prefs.piper_host))
     setPiperVoice(prefs.piper_voice)
   }, [profile])
+
+  const piperHostHint = piperHostInputHint(piperHost)
 
   const toggleContrast = async () => {
     const next = !highContrast
@@ -98,17 +102,24 @@ export function SettingsPage() {
       const trimmed = piperUrl.trim()
       const isInternal =
         trimmed.includes('piper-tts') || trimmed.includes('piper:') || trimmed.includes(':10200')
+      const host = normalizePiperHost(piperHost)
+      const hadBadHost = piperHost.trim().length > 0 && !host
 
       await api.updateProfile({
         preferences: {
           tts_mode: ttsMode,
           piper_url: isInternal ? '' : trimmed,
-          piper_host: ttsMode === 'piper' ? piperHost.trim() : '',
+          piper_host: ttsMode === 'piper' ? host : '',
           piper_voice: ttsMode === 'piper' ? piperVoice : '',
         },
       })
       await refreshProfile()
-      if (isInternal && trimmed) {
+      if (hadBadHost) {
+        setPiperHost('')
+        setTtsMessage(
+          'Se quitó el hostname inválido (127.0.0.1 no es Piper). En Coolify → Piper → Terminal ejecutá: hostname',
+        )
+      } else if (isInternal && trimmed) {
         setPiperUrl('')
         setTtsMessage(
           'Guardado. Se quitó la URL interna (piper-tts) — el backend la resuelve solo en Coolify.',
@@ -136,7 +147,13 @@ export function SettingsPage() {
         })
         setTtsMessage('Reproduciendo voz del navegador')
       } else {
-        const result = await testPiperVoice(piperUrl, profile, undefined, piperVoice, piperHost)
+        const result = await testPiperVoice(
+          piperUrl,
+          profile,
+          undefined,
+          piperVoice,
+          normalizePiperHost(piperHost) || undefined,
+        )
         if (!result.ok) {
           setTtsMessage(`Error: ${result.error}`)
           return
@@ -306,13 +323,20 @@ export function SettingsPage() {
                           id="piper-host"
                           value={piperHost}
                           onChange={(e) => setPiperHost(e.target.value)}
+                          onBlur={() => setPiperHost(normalizePiperHost(piperHost))}
                           placeholder="Ej. piper-tts · vacío = env del backend"
-                          className="w-full rounded-lg border px-3 py-2 text-sm"
+                          className={`w-full rounded-lg border px-3 py-2 text-sm ${
+                            piperHostHint ? 'border-amber-400 bg-amber-50' : ''
+                          }`}
                         />
-                        <p className="mt-1 text-xs text-slate-500">
-                          Piper → Terminal → <code>hostname</code>. Solo el nombre, sin http:// ni
-                          puerto.
-                        </p>
+                        {piperHostHint ? (
+                          <p className="mt-1 text-xs text-amber-800">{piperHostHint}</p>
+                        ) : (
+                          <p className="mt-1 text-xs text-slate-500">
+                            Coolify → servicio <strong>Piper</strong> → Terminal →{' '}
+                            <code>hostname</code> (no uses 127.0.0.1).
+                          </p>
+                        )}
                       </div>
                       <input
                         value={piperUrl}

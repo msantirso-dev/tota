@@ -14,6 +14,22 @@ logger = logging.getLogger(__name__)
 
 # Nombres habituales del contenedor Piper en Coolify / Docker Compose
 PIPER_HOST_FALLBACKS = ("piper-tts", "piper")
+LOCAL_PIPER_HOSTS = frozenset({"localhost", "127.0.0.1", "127", "0.0.0.0"})
+
+
+def normalize_piper_host(value: str | None) -> str | None:
+    if not value or not value.strip():
+        return None
+    raw = value.strip()
+    if "://" in raw:
+        host = urlparse(raw).hostname
+    else:
+        host = raw.split("/")[0].split(":")[0]
+    if not host:
+        return None
+    if host.lower() in LOCAL_PIPER_HOSTS:
+        return None
+    return host
 
 
 def format_piper_error(detail: str) -> str:

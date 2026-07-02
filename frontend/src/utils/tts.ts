@@ -1,5 +1,6 @@
 import type { Profile, TtsPreferences } from '../types'
 import { api } from '../services/api'
+import { normalizePiperHost } from './piperHost'
 import { speakText, unlockSpeech } from './phrase'
 
 const INTERNAL_DOCKER_HOSTS = new Set(['piper', 'piper-tts', 'localhost', '127.0.0.1'])
@@ -146,7 +147,7 @@ export async function speakWithProfile(text: string, profile: Profile | null | u
         backendUrl,
         language,
         prefs.piper_voice,
-        prefs.piper_host || undefined,
+        normalizePiperHost(prefs.piper_host) || undefined,
       )
       if (viaBackend) return
     } catch {
@@ -174,7 +175,7 @@ export async function testPiperVoice(
   const rawUrl = piperUrl.trim()
   const backendUrl = piperUrlForBackend(rawUrl)
   const voice = piperVoice ?? prefs.piper_voice
-  const host = piperHost ?? prefs.piper_host
+  const host = normalizePiperHost(piperHost ?? prefs.piper_host) || undefined
 
   if (isPublicPiperUrl(rawUrl)) {
     const direct = await tryPiperDirect(rawUrl, sample, language)
