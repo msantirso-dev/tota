@@ -1,3 +1,5 @@
+import { unlockMediaAudio } from './audio'
+
 const CONNECTORS: Record<string, string> = {
   casa: 'a casa',
   baño: 'al baño',
@@ -8,12 +10,12 @@ const CONNECTORS: Record<string, string> = {
 let voicesCache: SpeechSynthesisVoice[] = []
 let voicesListenerAttached = false
 
-function isMobileDevice(): boolean {
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-}
-
 function isIOS(): boolean {
   return /iPhone|iPad|iPod/i.test(navigator.userAgent)
+}
+
+function isAndroid(): boolean {
+  return /Android/i.test(navigator.userAgent)
 }
 
 function loadVoices(): SpeechSynthesisVoice[] {
@@ -29,21 +31,33 @@ function ensureVoicesListener() {
   window.speechSynthesis.addEventListener('voiceschanged', loadVoices)
 }
 
-function pickVoice(language: string): SpeechSynthesisVoice | undefined {
-  const voices = voicesCache.length ? voicesCache : loadVoices()
-  const lang = language.toLowerCase()
-  return (
-    voices.find((v) => v.lang.toLowerCase() === lang) ||
-    voices.find((v) => v.lang.toLowerCase().startsWith(lang.split('-')[0])) ||
-    voices.find((v) => v.lang.toLowerCase().startsWith('es')) ||
-    voices[0]
-  )
+function waitForVoices(timeoutMs = 2500): Promise<SpeechSynthesisVoice[]> {
+  const current = loadVoices()
+  if (current.length) return Promise.resolve(current)
+  if (!('speechSynthesis' in window)) return Promise.resolve([])
+
+  return new Promise((resolve) => {
+    const finish = () => resolve(loadVoices())
+    const timer = window.setTimeout(finish, timeoutMs)
+    window.speechSynthesis.addEventListener(
+      'voiceschanged',
+      () => {
+        window.clearTimeout(timer)
+        finish()
+      },
+      { once: true },
+    )
+  })
 }
 
-/** iOS/Safari exige una interacción previa; llamar en el primer toque del tablero. */
+/** iOS/Android: interacción previa; desbloquea TTS y reproducción de audio Piper. */
 export function unlockSpeech(): void {
-  if (!('speechSynthesis' in window)) return
+  if (!('speechSynthesis' in window)) {
+    unlockMediaAudio()
+    return
+  }
   ensureVoicesListener()
+  unlockMediaAudio()
   window.speechSynthesis.resume()
   const utterance = new SpeechSynthesisUtterance(' ')
   utterance.volume = 0.01
@@ -64,13 +78,20 @@ export function speakText(
   if (!text || !('speechSynthesis' in window)) return
 
   ensureVoicesListener()
+  unlockMediaAudio()
   window.speechSynthesis.resume()
 
   const language = options.language || 'es-AR'
-  const runSpeak = () => {
+
+  const runSpeak = (voices: SpeechSynthesisVoice[]) => {
     window.speechSynthesis.cancel()
     const utterance = new SpeechSynthesisUtterance(text)
-    const voice = pickVoice(language)
+    const lang = language.toLowerCase()
+    const voice =
+      voices.find((v) => v.lang.toLowerCase() === lang) ||
+      voices.find((v) => v.lang.toLowerCase().startsWith(lang.split('-')[0])) ||
+      voices.find((v) => v.lang.toLowerCase().startsWith('es')) ||
+      voices[0]
     if (voice) utterance.voice = voice
     utterance.lang = language
     utterance.rate = options.rate ?? 1
@@ -78,13 +99,16 @@ export function speakText(
     window.speechSynthesis.speak(utterance)
   }
 
-  // iOS cancela el siguiente speak si es inmediato; Android a veces también.
-  if (isIOS() || isMobileDevice()) {
-    window.speechSynthesis.cancel()
-    setTimeout(runSpeak, 120)
-  } else {
-    runSpeak()
-  }
+  const delay = isIOS() ? 120 : isAndroid() ? 200 : 0
+
+  void waitForVoices().then((voices) => {
+    if (delay > 0) {
+      window.speechSynthesis.cancel()
+      window.setTimeout(() => runSpeak(voices), delay)
+    } else {
+      runSpeak(voices)
+    }
+  })
 }
 
 export function isSpeechSupported(): boolean {

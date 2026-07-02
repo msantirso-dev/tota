@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useEffect } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import {
   AlertTriangle,
@@ -13,6 +14,7 @@ import {
   Users,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { unlockSpeech } from '../utils/phrase'
 import { YoutubeIcon } from './YoutubeIcon'
 
 const YOUTUBE_URL = 'https://www.youtube.com'
@@ -40,6 +42,16 @@ const baseLinks: NavItem[] = [
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { logout, profile, user } = useAuth()
+
+  useEffect(() => {
+    const unlock = () => unlockSpeech()
+    window.addEventListener('touchstart', unlock, { passive: true, once: true })
+    window.addEventListener('click', unlock, { once: true })
+    return () => {
+      window.removeEventListener('touchstart', unlock)
+      window.removeEventListener('click', unlock)
+    }
+  }, [])
 
   const links: NavItem[] =
     user?.role === 'admin' || user?.role === 'terapeuta'

@@ -1,6 +1,7 @@
 import type { Profile, TtsPreferences } from '../types'
 import { api } from '../services/api'
 import { normalizePiperHost } from './piperHost'
+import { playAudioBlob } from './audio'
 import { speakText, unlockSpeech } from './phrase'
 
 const INTERNAL_DOCKER_HOSTS = new Set(['piper', 'piper-tts', 'localhost', '127.0.0.1'])
@@ -50,22 +51,8 @@ function base64ToBlob(base64: string, contentType: string): Blob {
   return new Blob([bytes], { type: contentType })
 }
 
-async function playBlob(blob: Blob): Promise<void> {
-  const url = URL.createObjectURL(blob)
-  try {
-    const audio = new Audio(url)
-    await audio.play()
-    await new Promise<void>((resolve, reject) => {
-      audio.onended = () => resolve()
-      audio.onerror = () => reject(new Error('No se pudo reproducir el audio'))
-    })
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
-
 async function playBase64(base64: string, contentType: string): Promise<void> {
-  await playBlob(base64ToBlob(base64, contentType))
+  await playAudioBlob(base64ToBlob(base64, contentType))
 }
 
 async function tryPiperDirect(piperUrl: string, text: string, language: string): Promise<boolean> {
@@ -83,7 +70,7 @@ async function tryPiperDirect(piperUrl: string, text: string, language: string):
 
       const contentType = resp.headers.get('content-type') ?? ''
       if (contentType.includes('audio')) {
-        await playBlob(await resp.blob())
+        await playAudioBlob(await resp.blob())
         return true
       }
 
@@ -155,6 +142,7 @@ export async function speakWithProfile(text: string, profile: Profile | null | u
     }
   }
 
+  unlockSpeech()
   speakText(text, voiceOptions(profile))
 }
 
